@@ -1,3 +1,4 @@
+# pyright: basic
 from lfg.group import Group
 from lfg.user import User
 
@@ -29,3 +30,9 @@ class State:
     def get_groups(self):
         """return all groups as list[Group]"""
         return self.groups
+
+    def __str__(self):
+        return f"State: {self.groups}"
+
+    def __repr__(self):
+        return f"State: {self.groups}"

@@ -31,10 +31,11 @@ class Group:
         if user not in self.dps_queue:
             self.dps_queue.append(user)
 
-    def remove_user(self, user: User) -> User | None:
+    def remove_user(self, user_id: str) -> User | None:
         for queue in [self.tank_queue, self.healer_queue, self.dps_queue]:
-            if user in queue:
-                queue.remove(user)
+            for user in queue:
+                if user.user_id == user_id:
+                    queue.remove(user)
         return user
 
     def get_queues(self) -> tuple[deque[User], deque[User], deque[User]]:

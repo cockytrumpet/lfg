@@ -1,4 +1,7 @@
 # pyright: basic
+# pyright: ignore[reportUnusedVariable]
+
+from typing import Optional
 
 if __name__ == "__main__" and __package__ is None:
     __package__ = "lfg"
@@ -14,6 +17,7 @@ def main():
     from dotenv import load_dotenv
 
     from lfg.group import Group
+    from lfg.role import Role
     from lfg.state import State
     from lfg.user import User
 
@@ -33,18 +37,18 @@ def main():
 
     # -------------------- end setup -------------------- #
 
-    async def get_info(ctx) -> tuple[User | None, Group | None, str | None]:
-        user: User = User(ctx.message.author.id, ctx.message.author.name)
+    async def get_info(ctx) -> tuple[Group | None, str | None]:
+        # user: User = User(ctx.message.author.id, ctx.message.author.name, roles)
 
         if ctx.message.channel.type == discord.ChannelType.voice:
             text_channel = ctx.channel
         else:
             await ctx.send("Looking for group? Join a voice channel!")
-            return (user, None, None)
+            return (None, None)
 
         group = state.get().get_group(text_channel)
 
-        return (user, group, text_channel)
+        return (group, text_channel)
 
     @bot.event
     async def on_ready():
@@ -59,8 +63,24 @@ def main():
                 raise
 
     @bot.command(name="lfg", help="Look for group")
-    async def lfg(ctx):
-        user, group, text_channel = await get_info(ctx)
+    async def lfg(ctx, args: Optional[str] = None):
+        roles: list[Role] = []
+        if args:
+            if "T" in args.upper():
+                roles.append(Role.TANK)
+            if "H" in args.upper():
+                roles.append(Role.HEALER)
+            if "D" in args.upper():
+                roles.append(Role.DPS)
+
+        user = User(ctx.message.author.id, ctx.message.author.name, roles)
+        group, text_channel = await get_info(ctx)
+
+        if not roles:
+            await ctx.send(
+                "Set your roles with !lfg <roles> where roles is a combination of T, H, D."
+            )
+            return
 
         if not user:
             await ctx.send("Error: No user found!")
@@ -80,71 +100,90 @@ def main():
                 await ctx.send(f"{...}'s group is active in this channel!")
                 return
         else:
-            state.get().add_group(ctx.channel, user)
-            print(f"* Added group in {ctx.channel} with owner {user.user_name}")
-            print(f"* Groups: {state.get().groups}")
+            s = state.get()
+            s.add_group(ctx.channel, user)
+            group = s.get_group(ctx.channel)
+
+            if group:
+                for role in roles:
+                    match role:
+                        case Role.TANK:
+                            group.tank_queue.append(user)
+                        case Role.HEALER:
+                            group.healer_queue.append(user)
+                        case Role.DPS:
+                            group.dps_queue.append(user)
 
         await ctx.send(f"{user.user_name} is LFG in {ctx.channel}!")
 
     @bot.command(name="end", help="End the group")
     async def endgroup(ctx):
-        # check if active in this channel
-        # check if user is owner
-        #   false: say no and return
-        # remove group
-        user, group, text_channel = await get_info(ctx)
+        group, text_channel = await get_info(ctx)
 
         if not text_channel:
-            return
-
-        if not user:
-            await ctx.send("Error: No user found!")
             return
 
         if not group:
             await ctx.send(f"No group in {text_channel}. Start one with !lfg.")
             return
+        user = group.owner
 
-        if not group.is_owner(user.user_id):
+        if not group.is_owner(ctx.message.author.id):
             await ctx.send(f"Group {text_channel} is owned by {user.user_name}")
             return
 
         state.get().remove_group(ctx.channel)
         print(f"* Removed group in {ctx.channel} with owner {user.user_name}")
-        print(f"* Groups: {state.get().groups}")
 
         await ctx.send("Group ended!")
 
+    @bot.command(name="char", help="Set in-game name")
+    async def set_char(ctx, char_name: str):
+        group, _ = await get_info(ctx)
+        if group:
+            state.get().get_group(ctx.channel).set_character_name(char_name)
+            print(f"* User {ctx.message.author.user_name} set char name to {char_name}")
+
     @bot.command(name="clear", help="Clear user from queues")
     async def clear(ctx):
-        user, group, text_channel = await get_info(ctx)
+        group, text_channel = await get_info(ctx)
+        user = ctx.message.author.id
         if user and group:
             group.remove_user(user)
-            print(f"* Groups: {state.get().groups}")
 
-    @bot.command(name="tank", help="Add user to tank queue")
-    async def add_tank(ctx):
-        user, group, text_channel = await get_info(ctx)
-        if user and group:
-            if user not in group.tank_queue:
-                group.tank_queue.append(user)
-                print(f"* Groups: {state.get().groups}")
+    @bot.command(name="join", help="Set your roles. e.g. !join THD")
+    async def set_roles(ctx, args: str):
+        roles: list[Role] = []
+        if args:
+            if "T" in args.upper():
+                roles.append(Role.TANK)
+            if "H" in args.upper():
+                roles.append(Role.HEALER)
+            if "D" in args.upper():
+                roles.append(Role.DPS)
 
-    @bot.command(name="healer", help="Add user to healer queue")
-    async def add_healer(ctx):
-        user, group, text_channel = await get_info(ctx)
-        if user and group:
-            if user not in group.healer_queue:
-                group.healer_queue.append(user)
-                print(f"* Groups: {state.get().groups}")
+        user = User(ctx.message.author.id, ctx.message.author.name, roles)
+        group, text_channel = await get_info(ctx)
+        if group:
+            for role in roles:
+                match role:
+                    case Role.TANK:
+                        if user not in group.tank_queue:
+                            group.tank_queue.append(user)
+                    case Role.HEALER:
+                        if user not in group.healer_queue:
+                            group.healer_queue.append(user)
+                    case Role.DPS:
+                        if user not in group.dps_queue:
+                            group.dps_queue.append(user)
 
-    @bot.command(name="dps", help="Add user to dps queue")
-    async def add_dps(ctx):
-        user, group, text_channel = await get_info(ctx)
-        if user and group:
-            if user not in group.dps_queue:
-                group.dps_queue.append(user)
-                print(f"* Groups: {state.get().groups}")
+    @bot.command(name="debug", help="Print debug info")
+    async def debug(ctx):
+        group, _ = await get_info(ctx)
+        if group:
+            print(state.get())
+            await ctx.send(state.get())
+            # print(f"* Group: {group}")
 
     bot.run(TOKEN)
 

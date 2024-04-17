@@ -1,3 +1,5 @@
 [project]
 name = "lfg"
 
+defineConstant = { DEBUG = true }
+reportUnusedVariable  = false
