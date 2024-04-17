@@ -16,6 +16,11 @@ def state() -> State:
     return State()
 
 
+@pytest.fixture
+def user() -> User:
+    return User(user_id=123, user_name="test_user")
+
+
 def test_group_init(group: Group):
     test_user = User(user_id=123, user_name="test_owner")
     assert group.channel == "test_channel"
@@ -78,23 +83,23 @@ def test_state_init(state: State):
     assert len(state.groups) == 0
 
 
-def test_state_add_group(state: State):
-    state.add_group("test_channel", "test_owner")
+def test_state_add_group(state: State, user: User):
+    state.add_group("test_channel", user)
     assert len(state.groups) == 1
     assert state.groups[0].channel == "test_channel"
-    assert state.groups[0].owner == "test_owner"
+    assert state.groups[0].owner == user
 
 
-def test_state_remove_group(state: State):
-    state.add_group("test_channel", "test_owner")
+def test_state_remove_group(state: State, user: User):
+    state.add_group("test_channel", user)
     state.remove_group("test_channel")
     assert len(state.groups) == 0
 
 
-def test_state_get_group(state: State):
-    state.add_group("test_channel", "test_owner")
+def test_state_get_group(state: State, user: User):
+    state.add_group("test_channel", user)
     group = state.get_group("test_channel")
     if group is None:
         assert False
     assert group.channel == "test_channel"
-    assert group.owner == "test_owner"
+    assert group.owner == user

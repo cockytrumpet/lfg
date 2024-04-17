@@ -23,9 +23,9 @@ def main():
         print("DISCORD_TOKEN not set in .env file")
         exit(1)
 
-    # 17910013627392
     intents = discord.Intents.all()
     intents.message_content = True
+
     bot = commands.Bot(command_prefix="!", intents=intents)
 
     state = contextvars.ContextVar("state", default=State())
@@ -67,7 +67,7 @@ def main():
             print(f"* Added group in {text_channel} with owner {user.user_name}")
             print(f"* Groups: {state.get().groups}")
 
-        await ctx.send(f"Looking for group in {text_channel}!")
+        await ctx.send(f"{user.user_name} is LFG in {text_channel}!")
 
     @bot.command(name="roll_dice", help="Simulates rolling dice.")
     async def roll(ctx, number_of_dice: int, number_of_sides: int):
