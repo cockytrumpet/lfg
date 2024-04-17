@@ -122,17 +122,18 @@ def main():
 
         if not text_channel:
             return
-
         if not group:
             await ctx.send(f"No group in {text_channel}. Start one with !lfg.")
             return
+
         user = group.owner
 
         if not group.is_owner(ctx.message.author.id):
             await ctx.send(f"Group {text_channel} is owned by {user.user_name}")
             return
 
-        state.get().remove_group(ctx.channel)
+        s = state.get()
+        s.remove_group(ctx.channel)
         print(f"* Removed group in {ctx.channel} with owner {user.user_name}")
 
         await ctx.send("Group ended!")

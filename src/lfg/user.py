@@ -4,12 +4,13 @@ from lfg.role import Role
 
 class User:
     def __init__(self, user_id: int, user_name: str, roles: list[Role]):
-        # TODO: figure out how to get user's discord server name'
+        # TODO: - figure out how to get user's discord server name
+        #       - rename this class to toon or character? they can have multiple
+        #         in the same queue
         # self.server_name = ""
         self.user_id = user_id
         self.user_name = user_name
         self.character_name = ""
-        self.invite_string = ""
         self.roles: list[Role] = roles
 
     def __eq__(self, other):
@@ -23,9 +24,7 @@ class User:
 
     def set_character_name(self, name: str):
         self.character_name = name
-        self.invite_string = "/invite " + str(self.character_name)
+        # self.invite_string = "/invite " + str(self.character_name)
 
     def get_invite_string(self) -> str | None:
-        if self.invite_string == "":
-            return None
-        return self.invite_string
+        raise NotImplementedError
