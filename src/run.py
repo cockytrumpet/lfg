@@ -13,6 +13,7 @@ def main():
     from discord.ext import commands
     from dotenv import load_dotenv
 
+    from lfg.group import Group
     from lfg.state import State
     from lfg.user import User
 
@@ -30,6 +31,21 @@ def main():
 
     state = contextvars.ContextVar("state", default=State())
 
+    # -------------------- end setup -------------------- #
+
+    async def get_info(ctx) -> tuple[User | None, Group | None, str | None]:
+        user: User = User(ctx.message.author.id, ctx.message.author.name)
+
+        if ctx.message.channel.type == discord.ChannelType.voice:
+            text_channel = ctx.channel
+        else:
+            await ctx.send("Looking for group? Join a voice channel!")
+            return (user, None, None)
+
+        group = state.get().get_group(text_channel)
+
+        return (user, group, text_channel)
+
     @bot.event
     async def on_ready():
         print(f"{bot.user.name} has connected to Discord!")  # pyright: ignore
@@ -44,14 +60,14 @@ def main():
 
     @bot.command(name="lfg", help="Look for group")
     async def lfg(ctx):
-        if ctx.message.channel.type == discord.ChannelType.voice:
-            text_channel = ctx.channel
-        else:
-            await ctx.send("Looking for group? Join a voice channel!")
+        user, group, text_channel = await get_info(ctx)
+
+        if not user:
+            await ctx.send("Error: No user found!")
             return
 
-        group = state.get().get_group(text_channel)
-        user: User = User(ctx.message.author.id, ctx.message.author.name)
+        if not text_channel:
+            return
 
         if group:
             if group.is_owner(user.user_id):
@@ -60,22 +76,43 @@ def main():
             else:
                 #  TODO: do something if owner has left voice channel
                 #        transfer ownership to another member?
-                await ctx.send(f"{...}'s group already exists in this channel!")
+                await ctx.send(f"{...}'s group is active in this channel!")
                 return
         else:
-            state.get().add_group(text_channel, user)
-            print(f"* Added group in {text_channel} with owner {user.user_name}")
+            state.get().add_group(ctx.channel, user)
+            print(f"* Added group in {ctx.channel} with owner {user.user_name}")
             print(f"* Groups: {state.get().groups}")
 
-        await ctx.send(f"{user.user_name} is LFG in {text_channel}!")
+        await ctx.send(f"{user.user_name} is LFG in {ctx.channel}!")
 
-    @bot.command(name="roll_dice", help="Simulates rolling dice.")
-    async def roll(ctx, number_of_dice: int, number_of_sides: int):
-        dice = [
-            str(random.choice(range(1, number_of_sides + 1)))
-            for _ in range(number_of_dice)
-        ]
-        await ctx.send(", ".join(dice))
+    @bot.command(name="end", help="End the group")
+    async def endgroup(ctx):
+        # check if active in this channel
+        # check if user is owner
+        #   false: say no and return
+        # remove group
+        user, group, text_channel = await get_info(ctx)
+
+        if not text_channel:
+            return
+
+        if not user:
+            await ctx.send("Error: No user found!")
+            return
+
+        if not group:
+            await ctx.send("Error: No group found!")
+            return
+
+        if not group.is_owner(user.user_id):
+            await ctx.send("Error: You are not the owner of this group!")
+            return
+
+        state.get().remove_group(ctx.channel)
+        print(f"* Removed group in {ctx.channel} with owner {user.user_name}")
+        print(f"* Groups: {state.get().groups}")
+
+        await ctx.send("Group ended!")
 
     bot.run(TOKEN)
 

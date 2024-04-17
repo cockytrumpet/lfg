@@ -91,9 +91,11 @@ def test_state_add_group(state: State, user: User):
 
 
 def test_state_remove_group(state: State, user: User):
+    user2 = User(user_id=1234, user_name="test_user2")
     state.add_group("test_channel", user)
+    state.add_group("test_channel", user2)
     state.remove_group("test_channel")
-    assert len(state.groups) == 0
+    assert len(state.groups) == 1
 
 
 def test_state_get_group(state: State, user: User):
