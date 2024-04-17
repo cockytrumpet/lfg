@@ -147,9 +147,9 @@ def main():
     @bot.command(name="clear", help="Clear user from queues")
     async def clear(ctx):
         group, text_channel = await get_info(ctx)
-        user = ctx.message.author.id
-        if user and group:
-            group.remove_user(user)
+        user_id = ctx.message.author.id
+        if user_id and group:
+            group.remove_user(user_id)
 
     @bot.command(name="join", help="Set your roles. e.g. !join THD")
     async def set_roles(ctx, args: str):
