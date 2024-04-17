@@ -52,7 +52,7 @@ def test_group_add_member(group: Group):
     group.add_healer(user2)
     group.add_healer(user3)
 
-    tank_queue, healer_queue, dps_queue = group.get_members()
+    tank_queue, healer_queue, dps_queue = group.get_queues()
     assert user1 in tank_queue
     assert user1 in healer_queue
     assert user1 in dps_queue
@@ -72,7 +72,7 @@ def test_group_remove_member(group: Group):
     assert len(group.dps_queue) == 1
     assert group.dps_queue[0].user_name == "test_user"
 
-    returned_user = group.remove_member(user)
+    returned_user = group.remove_user(user)
 
     assert len(group.dps_queue) == 0
     assert user not in group.dps_queue

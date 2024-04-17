@@ -19,25 +19,25 @@ class Group:
     def is_owner(self, user_id: int) -> bool:
         return self.owner.user_id == user_id
 
-    def add_tank(self, member: User):
-        if member not in self.tank_queue:
-            self.tank_queue.append(member)
+    def add_tank(self, user: User):
+        if user not in self.tank_queue:
+            self.tank_queue.append(user)
 
-    def add_healer(self, member: User):
-        if member not in self.healer_queue:
-            self.healer_queue.append(member)
+    def add_healer(self, user: User):
+        if user not in self.healer_queue:
+            self.healer_queue.append(user)
 
-    def add_dps(self, member: User):
-        if member not in self.dps_queue:
-            self.dps_queue.append(member)
+    def add_dps(self, user: User):
+        if user not in self.dps_queue:
+            self.dps_queue.append(user)
 
-    def remove_member(self, member: User) -> User | None:
+    def remove_user(self, user: User) -> User | None:
         for queue in [self.tank_queue, self.healer_queue, self.dps_queue]:
-            if member in queue:
-                queue.remove(member)
-                return member
+            if user in queue:
+                queue.remove(user)
+        return user
 
-    def get_members(self) -> tuple[deque[User], deque[User], deque[User]]:
+    def get_queues(self) -> tuple[deque[User], deque[User], deque[User]]:
         return (self.tank_queue, self.healer_queue, self.dps_queue)
 
     def __repr__(self) -> str:  # pyright: ignore

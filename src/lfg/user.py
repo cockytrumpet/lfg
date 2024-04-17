@@ -11,3 +11,6 @@ class User:
 
     def __str__(self):
         return f"User(user_name={self.user_name}, user_id={self.user_id})"
+
+    def __repr__(self):
+        return f"User(user_name={self.user_name}, user_id={self.user_id})"

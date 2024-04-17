@@ -72,6 +72,7 @@ def main():
         if group:
             if group.is_owner(user.user_id):
                 await ctx.send("You are already looking for group in this channel!")
+                # TODO: call function to pretty print the group
                 return
             else:
                 #  TODO: do something if owner has left voice channel
@@ -101,11 +102,11 @@ def main():
             return
 
         if not group:
-            await ctx.send("Error: No group found!")
+            await ctx.send(f"No group in {text_channel}. Start one with !lfg.")
             return
 
         if not group.is_owner(user.user_id):
-            await ctx.send("Error: You are not the owner of this group!")
+            await ctx.send(f"Group {text_channel} is owned by {user.user_name}")
             return
 
         state.get().remove_group(ctx.channel)
@@ -113,6 +114,37 @@ def main():
         print(f"* Groups: {state.get().groups}")
 
         await ctx.send("Group ended!")
+
+    @bot.command(name="clear", help="Clear user from queues")
+    async def clear(ctx):
+        user, group, text_channel = await get_info(ctx)
+        if user and group:
+            group.remove_user(user)
+            print(f"* Groups: {state.get().groups}")
+
+    @bot.command(name="tank", help="Add user to tank queue")
+    async def add_tank(ctx):
+        user, group, text_channel = await get_info(ctx)
+        if user and group:
+            if user not in group.tank_queue:
+                group.tank_queue.append(user)
+                print(f"* Groups: {state.get().groups}")
+
+    @bot.command(name="healer", help="Add user to healer queue")
+    async def add_healer(ctx):
+        user, group, text_channel = await get_info(ctx)
+        if user and group:
+            if user not in group.healer_queue:
+                group.healer_queue.append(user)
+                print(f"* Groups: {state.get().groups}")
+
+    @bot.command(name="dps", help="Add user to dps queue")
+    async def add_dps(ctx):
+        user, group, text_channel = await get_info(ctx)
+        if user and group:
+            if user not in group.dps_queue:
+                group.dps_queue.append(user)
+                print(f"* Groups: {state.get().groups}")
 
     bot.run(TOKEN)
 
