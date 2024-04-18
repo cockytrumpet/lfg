@@ -1,8 +1,16 @@
 # pyright: basic
 from collections import deque
 
-# from lfg.role import Role
+from lfg.role import Role
 from lfg.user import User
+
+
+class Pretty_deque(deque):
+    def __repr__(self):
+        return f"{list(self)}"
+
+    def __str__(self):
+        return f"{list(self)}"
 
 
 class Group:
@@ -10,9 +18,9 @@ class Group:
         super().__init__()
         self.channel: str = channel
         self.owner: User = owner
-        self.tank_queue: deque[User] = deque()
-        self.healer_queue: deque[User] = deque()
-        self.dps_queue: deque[User] = deque()
+        self.tank_queue: deque[User] = Pretty_deque()
+        self.healer_queue: deque[User] = Pretty_deque()
+        self.dps_queue: deque[User] = Pretty_deque()
 
     def set_owner(self, owner: User):
         self.owner = owner
@@ -32,15 +40,60 @@ class Group:
         if user not in self.dps_queue:
             self.dps_queue.append(user)
 
-    def remove_user(self, user_id: int) -> User | None:
-        user = User(user_id, "", [])
-        for queue in [self.tank_queue, self.healer_queue, self.dps_queue]:
-            if user in queue:
-                queue.remove(user)
+    def remove_character(
+        self, user_id: int, character: str, roles: list[Role]
+    ) -> User | None:
+        user = User(user_id, "", character, roles)
+        for role in roles:
+            match role:
+                case Role.TANK:
+                    if user in self.tank_queue:
+                        self.tank_queue.remove(user)
+                case Role.HEALER:
+                    if user in self.healer_queue:
+                        self.healer_queue.remove(user)
+                case Role.DPS:
+                    if user in self.dps_queue:
+                        self.dps_queue.remove(user)
         return user
+
+    def remove_user(self, user_id: int) -> None:
+        for queue in [self.tank_queue, self.healer_queue, self.dps_queue]:
+            temp = []
+            for q in queue:
+                if q.user_id == user_id:
+                    temp.append(q)
+            for t in temp:
+                if t in queue:
+                    print(f"* Removed {user_id=} from queues")
+                    queue.remove(t)
 
     def get_queues(self) -> tuple[deque[User], deque[User], deque[User]]:
         return (self.tank_queue, self.healer_queue, self.dps_queue)
 
     def __repr__(self) -> str:  # pyright: ignore
         return f"Group(channel={self.channel}, owner={self.owner}, tank_queue={self.tank_queue}, healer_queue={self.healer_queue}, dps_queue={self.dps_queue})"
+
+    def __str__(self) -> str:  # pyright: ignore
+        tank = list(self.tank_queue)
+        healer = list(self.healer_queue)
+        dps = list(self.dps_queue)
+
+        t_len = len(tank)
+        h_len = len(healer)
+        d_len = len(dps)
+        max_len = max(t_len, h_len, d_len)
+
+        output = f'{"":<4}  {"Tank":<20} {"Healer":<20} {"DPS":<20}\n'
+        output += "-" * len(output) + "\n"
+
+        for i in range(max_len, -1, -1):
+            tank_str = tank[i].__str__() if i < t_len else " "
+            healer_str = healer[i].__str__() if i < h_len else " "
+            dps_str = dps[i].__str__() if i < d_len else " "
+            if tank_str + healer_str + dps_str == "   ":
+                continue
+
+            output += f"{i+1:<4}  {tank_str:<20} {healer_str:<20} {dps_str:<20}\n"
+
+        return output or "NO OUTPUT"

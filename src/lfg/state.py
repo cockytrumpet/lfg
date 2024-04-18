@@ -15,10 +15,7 @@ class State:
 
     def remove_group(self, channel: str):
         """remove group from groups list by channel name"""
-        for group in self.groups:
-            if group.channel == channel:
-                self.groups.remove(group)
-                del group
+        self.groups = [group for group in self.groups if group.channel != channel]
 
     def get_group(self, channel: str) -> Group | None:
         """find group by channel name"""
@@ -32,7 +29,7 @@ class State:
         return self.groups
 
     def __str__(self):
-        return f"State: {self.groups}"
+        return f"{len(self.groups)} group(s): {', '.join(str(group.channel) for group in self.groups)}"
 
     def __repr__(self):
-        return f"State: {self.groups}"
+        return f"State({self.groups})"

@@ -8,7 +8,7 @@ from lfg.user import User
 
 @pytest.fixture
 def group() -> Group:
-    return Group("test_channel", User(user_id=123, user_name="test_owner"))
+    return Group("test_channel", User(user_id=123, character="test_owner"))
 
 
 @pytest.fixture
@@ -18,14 +18,13 @@ def state() -> State:
 
 @pytest.fixture
 def user() -> User:
-    return User(user_id=123, user_name="test_user")
+    return User(user_id=123, character="test_user")
 
 
 def test_group_init(group: Group):
-    test_user = User(user_id=123, user_name="test_owner")
+    test_user = User(user_id=123, character="test_owner", roles=[])
     assert group.channel == "test_channel"
     assert group.owner.user_id == test_user.user_id
-    assert group.owner.user_name == test_user.user_name
     assert len(group.tank_queue) == 0
     assert len(group.healer_queue) == 0
     assert len(group.dps_queue) == 0
@@ -34,15 +33,15 @@ def test_group_init(group: Group):
 def test_group_owner(group: Group):
     assert group.is_owner(123)
     assert not group.is_owner(1234)
-    group.set_owner(User(user_id=1234, user_name="new_owner"))
+    group.set_owner(User(user_id=1234, character="new_owner", roles=[]))
     assert group.is_owner(1234)
     assert not group.is_owner(123)
 
 
 def test_group_add_member(group: Group):
-    user1 = User(user_id=123, user_name="user1")
-    user2 = User(user_id=1234, user_name="user2")
-    user3 = User(user_id=12345, user_name="user3")
+    user1 = User(user_id=123, character="user1", roles=[])
+    user2 = User(user_id=1234, character="user2", roles=[])
+    user3 = User(user_id=12345, character="user3", roles=[])
 
     group.add_tank(user1)
     group.add_tank(user1)
@@ -66,7 +65,7 @@ def test_group_add_member(group: Group):
 
 
 def test_group_remove_member(group: Group):
-    user = User(user_id=123, user_name="test_user")
+    user = User(user_id=123, character="dontmilkme", roles=[])
     group.add_dps(user)
 
     assert len(group.dps_queue) == 1
@@ -91,7 +90,7 @@ def test_state_add_group(state: State, user: User):
 
 
 def test_state_remove_group(state: State, user: User):
-    user2 = User(user_id=1234, user_name="test_user2")
+    user2 = User(user_id=1234, character="test_user2")
     state.add_group("test_channel", user)
     state.add_group("test_channel", user2)
     state.remove_group("test_channel")
