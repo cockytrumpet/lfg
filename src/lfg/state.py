@@ -10,11 +10,13 @@ class State:
 
     def add_group(self, channel: str, owner: User):
         """create new group and add it to groups list"""
+        print(f"* Created group '{channel}' with owner {owner}")
         new_group = Group(channel, owner)
         self.groups.append(new_group)
 
     def remove_group(self, channel: str):
         """remove group from groups list by channel name"""
+        print(f"* Removed group '{channel}'")
         self.groups = [group for group in self.groups if group.channel != channel]
 
     def get_group(self, channel: str) -> Group | None:

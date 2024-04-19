@@ -35,8 +35,6 @@ def main():
     # ------------------ helper functions ------------------ #
 
     async def get_info(ctx) -> tuple[Group | None, str | None]:
-        # user: User = User(ctx.message.author.id, ctx.message.author.name, roles)
-
         if ctx.message.channel.type == discord.ChannelType.voice:
             text_channel = ctx.channel
         else:
@@ -75,9 +73,16 @@ def main():
             else:
                 raise
 
-    @bot.command(name="lfg", help="Start group. e.g. !lfg <character> <THD>")
+    @bot.command(name="lfg", help="Form group/Print status")
     async def lfg(ctx):
-        user = User(ctx.message.author.id, ctx.message.author.global_name, "", [])
+        print(f"* Handeled: 'lfg' for {ctx.message.author.nick}")
+        user = User(
+            ctx.message.author.id,
+            ctx.message.author.global_name,
+            ctx.message.author.nick,  # FIX: is this @name?
+            "",
+            [],
+        )
         group, text_channel = await get_info(ctx)
 
         if not user:
@@ -104,8 +109,10 @@ def main():
 
         await ctx.send(f"{ctx.message.author.global_name} is LFG in {ctx.channel}!")
 
-    @bot.command(name="bye", help="End the group")
+    @bot.command(name="bye", help="End group")
     async def endgroup(ctx):
+        print(f"* Handeled: 'bye' for {ctx.message.author.nick}")
+
         group, text_channel = await get_info(ctx)
 
         if not text_channel:
@@ -130,29 +137,37 @@ def main():
 
         await ctx.send("Group ended!")
 
-    @bot.command(name="clear", help="Clear user from queues")
+    @bot.command(name="clear", help="Remove all from queues")
     async def clear(ctx):
+        print(f"* Handeled: 'clear' for {ctx.message.author.nick}")
+
         group, text_channel = await get_info(ctx)
         user_id = ctx.message.author.id
         if user_id and group:
             group.remove_user(user_id)
 
-    @bot.command(name="leave", help="Leave queue (!leave <character> <roles>)")
+    @bot.command(name="leave", help="Leave queues (<character> <roles>)")
     async def leave(ctx, character: str, role_str: str = ""):
-        roles: list[Role] = make_roles(role_str)
+        print(f"* Handeled: 'lfg' for {ctx.message.author.nick}")
+
+        roles: list[Role] = make_roles(role_str) or [Role.DPS, Role.HEALER, Role.TANK]
         group, text_channel = await get_info(ctx)
         user_id = ctx.message.author.id
         if user_id and group:
-            group.remove_character(user_id, character, roles)
+            user = User(ctx.message.author.id, "", "", character, roles)
+            group.remove_character(user, roles)
 
-    @bot.command(
-        name="join",
-        help="Set your roles. e.g. !join character THD(for Tank, Healer, DPS)",
-    )
+    @bot.command(name="join", help="Join queues (<character> <roles>)")
     async def join(ctx, character: str, role_str: str):
+        print(f"* Handeled: 'join' for {ctx.message.author.nick}")
+
         roles: list[Role] = make_roles(role_str)
         user = User(
-            ctx.message.author.id, ctx.message.author.global_name, character, roles
+            ctx.message.author.id,
+            ctx.message.author.global_name,
+            ctx.message.author.nick,
+            character,
+            roles,
         )
         group, text_channel = await get_info(ctx)
         if group:
@@ -167,11 +182,60 @@ def main():
                     case Role.DPS:
                         if user not in group.dps_queue:
                             group.dps_queue.append(user)
+            print(f"* Joined {user} to {text_channel}")
+            await lfg(ctx)
 
     @bot.command(name="debug", help="Print debug info")
     async def debug(ctx):
+        print(f"* Handeled: 'debug' for {ctx.message.author.nick}")
+
         s = state.get()
         await ctx.send(repr(s))
+
+    @bot.command(name="tank", help="Get next tank")
+    async def get_tank(ctx):
+        print(f"* Handeled: 'tank' for {ctx.message.author.nick}")
+
+        s: State = state.get()
+        g: Group | None = s.get_group(ctx.channel)
+
+        if g:
+            if next := g.next_tank():
+                await lfg(ctx)
+                await ctx.send(f"**Next tank: {next} @{next.disc_name}**")
+            else:
+                await lfg(ctx)
+                await ctx.send("**No tanks in queue**")
+
+    @bot.command(name="healer", help="Get next healer")
+    async def get_healer(ctx):
+        print(f"* Handeled: 'healer' for {ctx.message.author.nick}")
+
+        s: State = state.get()
+        g: Group | None = s.get_group(ctx.channel)
+
+        if g:
+            if next := g.next_healer():
+                await lfg(ctx)
+                await ctx.send(f"**Next healer: {next} @{next.disc_name}**")
+            else:
+                await lfg(ctx)
+                await ctx.send("**No healers in queue**")
+
+    @bot.command(name="dps", help="Get next DPS")
+    async def get_dps(ctx):
+        print(f"* Handeled: 'dps' for {ctx.message.author.nick}")
+
+        s: State = state.get()
+        g: Group | None = s.get_group(ctx.channel)
+
+        if g:
+            if next := g.next_dps():
+                await lfg(ctx)
+                await ctx.send(f"**Next DPS: {next} @{next.disc_name}**")
+            else:
+                await lfg(ctx)
+                await ctx.send("No DPS in queue")
 
     bot.run(TOKEN)
 
