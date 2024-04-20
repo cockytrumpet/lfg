@@ -3,6 +3,8 @@ from collections import deque
 
 from lfg.role import Role
 from lfg.task import Task
+from lfg.user import User
+from lfg.utils import logger
 
 
 class Pretty_deque(deque):
@@ -14,35 +16,35 @@ class Pretty_deque(deque):
 
 
 class Group:
-    def __init__(self, channel: str, owner: Task):
+    def __init__(self, channel: str, owner: User):
         super().__init__()
         self.channel: str = channel
-        self.owner: Task = owner
+        self.owner: User = owner
         self.tank_queue: deque[Task] = Pretty_deque()
         self.healer_queue: deque[Task] = Pretty_deque()
         self.dps_queue: deque[Task] = Pretty_deque()
 
-    def set_owner(self, owner: Task):
+    def set_owner(self, owner: User):
         print("* Set owner to {owner}")
         self.owner = owner
 
     def is_owner(self, user_id: int) -> bool:
-        return self.owner.user_id == user_id
+        return self.owner.id == user_id
 
-    def add_tank(self, user: Task):
-        if user not in self.tank_queue:
-            print(f"* Added {user} to tank queue")
-            self.tank_queue.append(user)
+    def add_tank(self, task: Task):
+        if task not in self.tank_queue:
+            print(f"* Added {task} to tank queue")
+            self.tank_queue.append(task)
 
-    def add_healer(self, user: Task):
-        if user not in self.healer_queue:
-            print(f"* Added {user} to healer queue")
-            self.healer_queue.append(user)
+    def add_healer(self, task: Task):
+        if task not in self.healer_queue:
+            print(f"* Added {task} to healer queue")
+            self.healer_queue.append(task)
 
-    def add_dps(self, user: Task):
-        if user not in self.dps_queue:
-            print(f"* Added {user} to DPS queue")
-            self.dps_queue.append(user)
+    def add_dps(self, task: Task):
+        if task not in self.dps_queue:
+            print(f"* Added {task} to DPS queue")
+            self.dps_queue.append(task)
 
     def next_tank(self) -> Task | None:
         if len(self.tank_queue) == 0:
@@ -69,47 +71,52 @@ class Group:
         return next
 
     def remove_character(
-        self, user: Task, roles: list[Role] = [Role.TANK, Role.HEALER, Role.DPS]
+        self, task: Task, roles: list[Role] = [Role.TANK, Role.HEALER, Role.DPS]
     ) -> Task | None:
-        print(f"* Removing {user} from [", end="")
+        r_str = ""
         for role in roles:
             match role:
                 case Role.TANK:
-                    if user in self.tank_queue:
-                        print("T", end="")
-                        self.tank_queue.remove(user)
+                    if task in self.tank_queue:
+                        self.tank_queue.remove(task)
+                        r_str += "T"
                 case Role.HEALER:
-                    if user in self.healer_queue:
-                        print("H", end="")
-                        self.healer_queue.remove(user)
+                    if task in self.healer_queue:
+                        self.healer_queue.remove(task)
+                        r_str += "H"
                 case Role.DPS:
-                    if user in self.dps_queue:
-                        print("D", end="")
-                        self.dps_queue.remove(user)
-        print("]")
-        return user
+                    if task in self.dps_queue:
+                        self.dps_queue.remove(task)
+                        r_str += "D"
 
-    def remove_user(self, user_id: int) -> Task | None:
+        if r_str:
+            r_str = f"[{','.join(r_str)}]"
+
+        logger(self.channel, f"Pop {task} from {r_str}")
+        return task
+
+    def remove_user(self, user_id: int) -> User | None:
         for queue in [self.tank_queue, self.healer_queue, self.dps_queue]:
-            user = None
+            user: User | None = None
             temp = []
-            for q in queue:
-                if q.user_id == user_id:
+            for task in queue:
+                if task.user.id == user_id:
                     if not user:
-                        user = q
-                    temp.append(q)
+                        user = task.user
+                    temp.append(task)
             for t in temp:
                 if t in queue:
                     queue.remove(t)
 
-        print(f"* Removed {user_id=} from queues")
+        if user:
+            logger(self.channel, f"Remove {user.nick} from queues")
         return user
 
     def get_queues(self) -> tuple[deque[Task], deque[Task], deque[Task]]:
         return (self.tank_queue, self.healer_queue, self.dps_queue)
 
     def __repr__(self) -> str:  # pyright: ignore
-        return f"Group(channel={self.channel}, owner={self.owner}, tank_queue={self.tank_queue}, healer_queue={self.healer_queue}, dps_queue={self.dps_queue})"
+        return f"Group(channel={self.channel}, owner={repr(self.owner)}, tank_queue={self.tank_queue}, healer_queue={self.healer_queue}, dps_queue={self.dps_queue})"
 
     def __str__(self) -> str:  # pyright: ignore
         tank = list(self.tank_queue)

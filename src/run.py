@@ -1,5 +1,5 @@
 # pyright: basic
-# pyright: ignore[reportUnusedVariable]
+# pyright: ignore[reportUnusedFunction]
 
 if __name__ == "__main__" and __package__ is None:
     __package__ = "lfg"
@@ -17,6 +17,8 @@ def main():
     from lfg.role import Role
     from lfg.state import State
     from lfg.task import Task
+    from lfg.user import User
+    from lfg.utils import logger
 
     load_dotenv()
     TOKEN = os.getenv("DISCORD_TOKEN")
@@ -76,15 +78,15 @@ def main():
 
     @bot.command(name="lfg", help="Form group/print status")
     async def lfg(ctx):
-        print(f"* Forwarded 'lfg' for {ctx.message.author.nick}")
+        group, text_channel = await get_info(ctx)
+        s = state.get()
+        user = s.get_user(ctx.message.id) or User(ctx)
+
         task = Task(
-            ctx.message.author.id,
-            ctx.message.author.global_name,
-            ctx.message.author.nick,
+            user,
             "",
             [],
         )
-        group, text_channel = await get_info(ctx)
 
         if not task:
             await ctx.send("Error: No user found!")
@@ -95,25 +97,23 @@ def main():
             return
 
         if group:
-            if group.is_owner(ctx.message.author.id):
-                msg = group.__str__()  # BUG: why is this empty?
+            if group.is_owner(user.id):
+                msg = str(group)
                 await ctx.send(msg)
                 return
             else:
                 #  TODO: do something if owner has left voice channel
                 #        transfer ownership to another member?
-                await ctx.send(f"{...}'s group is active in this channel!")
+                await ctx.send(f"{user.name}'s group is active in this channel!")
                 return
         else:
             s = state.get()
-            s.add_group(ctx.channel, task)
+            s.add_group(ctx.channel, user)
 
-        await ctx.send(f"{ctx.message.author.global_name} is LFG in {ctx.channel}!")
+        await ctx.send(f"{user.name} formed group in {ctx.channel}")
 
     @bot.command(name="bye", help="End group")
     async def endgroup(ctx):
-        print(f"* Forwarded 'bye' for {ctx.message.author.nick}")
-
         group, text_channel = await get_info(ctx)
 
         if not text_channel:
@@ -131,17 +131,12 @@ def main():
             return
 
         s = state.get()
-        s.remove_group(ctx.channel)
-        print(
-            f"* Removed group in {ctx.channel} with owner {ctx.message.author.global_name}"
-        )
+        s.remove_group(ctx)
 
         await ctx.send("Group ended!")
 
     @bot.command(name="clear", help="Remove all from queues")
     async def clear(ctx):
-        print(f"* Forwarded 'clear' for {ctx.message.author.nick}")
-
         group, text_channel = await get_info(ctx)
         user_id = ctx.message.author.id
         if user_id and group:
@@ -149,8 +144,6 @@ def main():
 
     @bot.command(name="leave", help="Leave queues (<character> <roles>)")
     async def leave(ctx, character: str = "", role_str: str = ""):
-        print(f"* Forwarded 'lfg' for {ctx.message.author.nick}")
-
         if character == "":
             await ctx.send("Missing character: !leave <character> <roles>")
             return
@@ -159,92 +152,93 @@ def main():
         group, text_channel = await get_info(ctx)
         user_id = ctx.message.author.id
         if user_id and group:
-            task = Task(ctx.message.author.id, "", "", character, roles)
+            user = User(ctx)
+            task = Task(user, character, roles)
             group.remove_character(task, roles)
 
     @bot.command(name="join", help="Join queues (<character> <roles>)")
     async def join(ctx, character: str = "", role_str: str = ""):
-        print(f"* Forwarded 'join' for {ctx.message.author.nick}")
-
         if not character or not role_str:
             await ctx.send("Missing character or roles: !join <character> <roles>")
             return
 
         roles: list[Role] = make_roles(role_str)
+        user = User(ctx)
         task = Task(
-            ctx.message.author.id,
-            ctx.message.author.global_name,
-            ctx.message.author.nick,
+            user,
             character,
             roles,
         )
         group, text_channel = await get_info(ctx)
         if group:
+            q_str = ""
             for role in roles:
                 match role:
                     case Role.TANK:
                         if task not in group.tank_queue:
                             group.tank_queue.append(task)
+                            q_str += "T"
                     case Role.HEALER:
                         if task not in group.healer_queue:
                             group.healer_queue.append(task)
+                            q_str += "H"
                     case Role.DPS:
                         if task not in group.dps_queue:
                             group.dps_queue.append(task)
-            print(f"* Joined {task} to {text_channel}")
+                            q_str += "D"
+            if q_str:
+                q_str = f"[{','.join(q_str)}]"
+
+            if not text_channel:
+                text_channel = "FIXME"
+            logger(text_channel, f"Queue {task} {q_str} in {text_channel}")
             await lfg(ctx)
 
     @bot.command(name="debug", help="Print debug info")
     async def debug(ctx):
-        print(f"* Forwarded 'debug' for {ctx.message.author.nick}")
+        logger(ctx.channel.name, f"Forward 'debug' for {ctx.message.author.nick}")
 
         s = state.get()
         await ctx.send(repr(s))
 
     @bot.command(name="tank", help="Get next tank")
     async def get_tank(ctx):
-        print(f"* Forwarded 'tank' for {ctx.message.author.nick}")
-
         s: State = state.get()
         g: Group | None = s.get_group(ctx.channel)
 
         if g:
             if next := g.next_tank():
                 await lfg(ctx)
-                await ctx.send(f"**Next tank: {next} @{next.disc_name}**")
+                await ctx.send(f"**Next tank: {next} @{next.user.nick}**")
             else:
                 await lfg(ctx)
                 await ctx.send("**No tanks in queue**")
 
     @bot.command(name="healer", help="Get next healer")
     async def get_healer(ctx):
-        print(f"* Forwarded 'healer' for {ctx.message.author.nick}")
-
         s: State = state.get()
         g: Group | None = s.get_group(ctx.channel)
 
         if g:
             if next := g.next_healer():
                 await lfg(ctx)
-                await ctx.send(f"**Next healer: {next} @{next.disc_name}**")
+                await ctx.send(f"**Next healer: {next} @{next.user.nick}**")
             else:
                 await lfg(ctx)
                 await ctx.send("**No healers in queue**")
 
     @bot.command(name="dps", help="Get next DPS")
     async def get_dps(ctx):
-        print(f"* Forwarded 'dps' for {ctx.message.author.nick}")
-
         s: State = state.get()
         g: Group | None = s.get_group(ctx.channel)
 
         if g:
             if next := g.next_dps():
                 await lfg(ctx)
-                await ctx.send(f"**Next DPS: {next} @{next.disc_name}**")
+                await ctx.send(f"**Next DPS: {next} @{next.user.nick}**")
             else:
                 await lfg(ctx)
-                await ctx.send("No DPS in queue")
+                await ctx.send("**No DPS in queue**")
 
     bot.run(TOKEN)
 
