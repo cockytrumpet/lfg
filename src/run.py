@@ -16,7 +16,7 @@ def main():
     from lfg.group import Group
     from lfg.role import Role
     from lfg.state import State
-    from lfg.user import User
+    from lfg.task import Task
 
     load_dotenv()
     TOKEN = os.getenv("DISCORD_TOKEN")
@@ -73,19 +73,19 @@ def main():
             else:
                 raise
 
-    @bot.command(name="lfg", help="Form group/Print status")
+    @bot.command(name="lfg", help="Form group/print status")
     async def lfg(ctx):
-        print(f"* Handeled: 'lfg' for {ctx.message.author.nick}")
-        user = User(
+        print(f"* Forwarded 'lfg' for {ctx.message.author.nick}")
+        task = Task(
             ctx.message.author.id,
             ctx.message.author.global_name,
-            ctx.message.author.nick,  # FIX: is this @name?
+            ctx.message.author.nick,
             "",
             [],
         )
         group, text_channel = await get_info(ctx)
 
-        if not user:
+        if not task:
             await ctx.send("Error: No user found!")
             return
 
@@ -105,13 +105,13 @@ def main():
                 return
         else:
             s = state.get()
-            s.add_group(ctx.channel, user)
+            s.add_group(ctx.channel, task)
 
         await ctx.send(f"{ctx.message.author.global_name} is LFG in {ctx.channel}!")
 
     @bot.command(name="bye", help="End group")
     async def endgroup(ctx):
-        print(f"* Handeled: 'bye' for {ctx.message.author.nick}")
+        print(f"* Forwarded 'bye' for {ctx.message.author.nick}")
 
         group, text_channel = await get_info(ctx)
 
@@ -147,22 +147,30 @@ def main():
             group.remove_user(user_id)
 
     @bot.command(name="leave", help="Leave queues (<character> <roles>)")
-    async def leave(ctx, character: str, role_str: str = ""):
-        print(f"* Handeled: 'lfg' for {ctx.message.author.nick}")
+    async def leave(ctx, character: str = "", role_str: str = ""):
+        print(f"* Forwarded 'lfg' for {ctx.message.author.nick}")
+
+        if character == "":
+            await ctx.send("Missing character: !leave <character> <roles>")
+            return
 
         roles: list[Role] = make_roles(role_str) or [Role.DPS, Role.HEALER, Role.TANK]
         group, text_channel = await get_info(ctx)
         user_id = ctx.message.author.id
         if user_id and group:
-            user = User(ctx.message.author.id, "", "", character, roles)
-            group.remove_character(user, roles)
+            task = Task(ctx.message.author.id, "", "", character, roles)
+            group.remove_character(task, roles)
 
     @bot.command(name="join", help="Join queues (<character> <roles>)")
-    async def join(ctx, character: str, role_str: str):
-        print(f"* Handeled: 'join' for {ctx.message.author.nick}")
+    async def join(ctx, character: str = "", role_str: str = ""):
+        print(f"* Forwarded 'join' for {ctx.message.author.nick}")
+
+        if not character or not role_str:
+            await ctx.send("Missing character or roles: !join <character> <roles>")
+            return
 
         roles: list[Role] = make_roles(role_str)
-        user = User(
+        task = Task(
             ctx.message.author.id,
             ctx.message.author.global_name,
             ctx.message.author.nick,
@@ -174,27 +182,27 @@ def main():
             for role in roles:
                 match role:
                     case Role.TANK:
-                        if user not in group.tank_queue:
-                            group.tank_queue.append(user)
+                        if task not in group.tank_queue:
+                            group.tank_queue.append(task)
                     case Role.HEALER:
-                        if user not in group.healer_queue:
-                            group.healer_queue.append(user)
+                        if task not in group.healer_queue:
+                            group.healer_queue.append(task)
                     case Role.DPS:
-                        if user not in group.dps_queue:
-                            group.dps_queue.append(user)
-            print(f"* Joined {user} to {text_channel}")
+                        if task not in group.dps_queue:
+                            group.dps_queue.append(task)
+            print(f"* Joined {task} to {text_channel}")
             await lfg(ctx)
 
     @bot.command(name="debug", help="Print debug info")
     async def debug(ctx):
-        print(f"* Handeled: 'debug' for {ctx.message.author.nick}")
+        print(f"* Forwarded 'debug' for {ctx.message.author.nick}")
 
         s = state.get()
         await ctx.send(repr(s))
 
     @bot.command(name="tank", help="Get next tank")
     async def get_tank(ctx):
-        print(f"* Handeled: 'tank' for {ctx.message.author.nick}")
+        print(f"* Forwarded 'tank' for {ctx.message.author.nick}")
 
         s: State = state.get()
         g: Group | None = s.get_group(ctx.channel)
