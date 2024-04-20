@@ -116,7 +116,7 @@ class Group:
         return (self.tank_queue, self.healer_queue, self.dps_queue)
 
     def __repr__(self) -> str:  # pyright: ignore
-        return f"Group(channel={self.channel}, owner={repr(self.owner)}, tank_queue={self.tank_queue}, healer_queue={self.healer_queue}, dps_queue={self.dps_queue})"
+        return f"Group(channel={self.channel}, owner={self.owner}, tank_queue={self.tank_queue}, healer_queue={self.healer_queue}, dps_queue={self.dps_queue})"
 
     def __str__(self) -> str:  # pyright: ignore
         tank = list(self.tank_queue)
