@@ -2,7 +2,7 @@
 from collections import deque
 
 from lfg.role import Role
-from lfg.user import User
+from lfg.task import Task
 
 
 class Pretty_deque(deque):
@@ -14,37 +14,37 @@ class Pretty_deque(deque):
 
 
 class Group:
-    def __init__(self, channel: str, owner: User):
+    def __init__(self, channel: str, owner: Task):
         super().__init__()
         self.channel: str = channel
-        self.owner: User = owner
-        self.tank_queue: deque[User] = Pretty_deque()
-        self.healer_queue: deque[User] = Pretty_deque()
-        self.dps_queue: deque[User] = Pretty_deque()
+        self.owner: Task = owner
+        self.tank_queue: deque[Task] = Pretty_deque()
+        self.healer_queue: deque[Task] = Pretty_deque()
+        self.dps_queue: deque[Task] = Pretty_deque()
 
-    def set_owner(self, owner: User):
+    def set_owner(self, owner: Task):
         print("* Set owner to {owner}")
         self.owner = owner
 
     def is_owner(self, user_id: int) -> bool:
         return self.owner.user_id == user_id
 
-    def add_tank(self, user: User):
+    def add_tank(self, user: Task):
         if user not in self.tank_queue:
             print(f"* Added {user} to tank queue")
             self.tank_queue.append(user)
 
-    def add_healer(self, user: User):
+    def add_healer(self, user: Task):
         if user not in self.healer_queue:
             print(f"* Added {user} to healer queue")
             self.healer_queue.append(user)
 
-    def add_dps(self, user: User):
+    def add_dps(self, user: Task):
         if user not in self.dps_queue:
             print(f"* Added {user} to DPS queue")
             self.dps_queue.append(user)
 
-    def next_tank(self) -> User | None:
+    def next_tank(self) -> Task | None:
         if len(self.tank_queue) == 0:
             return None
 
@@ -52,7 +52,7 @@ class Group:
         self.remove_character(next)
         return next
 
-    def next_healer(self) -> User | None:
+    def next_healer(self) -> Task | None:
         if len(self.healer_queue) == 0:
             return None
 
@@ -60,7 +60,7 @@ class Group:
         self.remove_character(next)
         return next
 
-    def next_dps(self) -> User | None:
+    def next_dps(self) -> Task | None:
         if len(self.dps_queue) == 0:
             return None
 
@@ -69,8 +69,8 @@ class Group:
         return next
 
     def remove_character(
-        self, user: User, roles: list[Role] = [Role.TANK, Role.HEALER, Role.DPS]
-    ) -> User | None:
+        self, user: Task, roles: list[Role] = [Role.TANK, Role.HEALER, Role.DPS]
+    ) -> Task | None:
         print(f"* Removing {user} from [", end="")
         for role in roles:
             match role:
@@ -89,7 +89,7 @@ class Group:
         print("]")
         return user
 
-    def remove_user(self, user_id: int) -> User | None:
+    def remove_user(self, user_id: int) -> Task | None:
         for queue in [self.tank_queue, self.healer_queue, self.dps_queue]:
             user = None
             temp = []
@@ -105,7 +105,7 @@ class Group:
         print(f"* Removed {user_id=} from queues")
         return user
 
-    def get_queues(self) -> tuple[deque[User], deque[User], deque[User]]:
+    def get_queues(self) -> tuple[deque[Task], deque[Task], deque[Task]]:
         return (self.tank_queue, self.healer_queue, self.dps_queue)
 
     def __repr__(self) -> str:  # pyright: ignore

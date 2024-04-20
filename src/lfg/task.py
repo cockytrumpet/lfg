@@ -2,7 +2,7 @@
 from lfg.role import Role
 
 
-class User:
+class Task:
     def __init__(
         self,
         user_id: int,

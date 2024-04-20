@@ -1,6 +1,6 @@
 # pyright: basic
 from lfg.group import Group
-from lfg.user import User
+from lfg.task import Task
 
 
 class State:
@@ -8,7 +8,7 @@ class State:
         super().__init__()
         self.groups: list[Group] = []
 
-    def add_group(self, channel: str, owner: User):
+    def add_group(self, channel: str, owner: Task):
         """create new group and add it to groups list"""
         print(f"* Created group '{channel}' with owner {owner}")
         new_group = Group(channel, owner)
