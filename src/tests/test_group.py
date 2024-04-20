@@ -4,7 +4,7 @@ import pytest
 from lfg.group import Group
 from lfg.role import Role
 from lfg.state import State
-from lfg.user import User
+from lfg.task import Task
 
 
 @pytest.fixture
@@ -12,7 +12,7 @@ def group() -> Group:
     roles = [Role.TANK, Role.HEALER, Role.DPS]
     return Group(
         "test_channel",
-        User(
+        Task(
             user_id=123, user_name="", disc_name="", character="test_owner", roles=roles
         ),
     )
@@ -24,15 +24,15 @@ def state() -> State:
 
 
 @pytest.fixture
-def user() -> User:
+def user() -> Task:
     roles = [Role.TANK, Role.HEALER, Role.DPS]
-    return User(
+    return Task(
         user_id=123, user_name="", disc_name="", character="test_user", roles=roles
     )
 
 
 def test_group_init(group: Group):
-    test_user = User(
+    test_user = Task(
         user_id=123, user_name="", disc_name="", character="test_owner", roles=[]
     )
     assert group.channel == "test_channel"
@@ -46,16 +46,16 @@ def test_group_owner(group: Group):
     assert group.is_owner(123)
     assert not group.is_owner(1234)
     group.set_owner(
-        User(user_id=1234, user_name="", disc_name="", character="new_owner", roles=[])
+        Task(user_id=1234, user_name="", disc_name="", character="new_owner", roles=[])
     )
     assert group.is_owner(1234)
     assert not group.is_owner(123)
 
 
 def test_group_add_user(group: Group):
-    user1 = User(user_id=123, user_name="", disc_name="", character="user1", roles=[])
-    user2 = User(user_id=1234, user_name="", disc_name="", character="user2", roles=[])
-    user3 = User(user_id=12345, user_name="", disc_name="", character="user3", roles=[])
+    user1 = Task(user_id=123, user_name="", disc_name="", character="user1", roles=[])
+    user2 = Task(user_id=1234, user_name="", disc_name="", character="user2", roles=[])
+    user3 = Task(user_id=12345, user_name="", disc_name="", character="user3", roles=[])
 
     group.add_tank(user1)
     group.add_tank(user1)
@@ -79,7 +79,7 @@ def test_group_add_user(group: Group):
 
 
 def test_group_remove_user(group: Group):
-    user = User(
+    user = Task(
         user_id=123,
         user_name="test_user",
         disc_name="",
@@ -98,7 +98,7 @@ def test_group_remove_user(group: Group):
     assert user == returned_user
 
 
-def test_group_remove_character(group: Group, user: User):
+def test_group_remove_character(group: Group, user: Task):
     assert len(group.tank_queue) == 0
     assert len(group.healer_queue) == 0
     assert len(group.dps_queue) == 0
