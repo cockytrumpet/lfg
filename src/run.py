@@ -41,7 +41,8 @@ def main():
             await ctx.send("Looking for group? Join a voice channel!")
             return (None, None)
 
-        group = state.get().get_group(text_channel)
+        s = state.get()
+        group = s.get_group(text_channel)
 
         return (group, text_channel)
 
@@ -63,7 +64,7 @@ def main():
 
     @bot.event
     async def on_ready():
-        print(f"{bot.user.name} has connected to Discord!")  # pyright: ignore
+        print(f"* {bot.user.name} connected to Discord")  # pyright: ignore
 
     @bot.event
     async def on_error(event, *args, _):
@@ -139,7 +140,7 @@ def main():
 
     @bot.command(name="clear", help="Remove all from queues")
     async def clear(ctx):
-        print(f"* Handeled: 'clear' for {ctx.message.author.nick}")
+        print(f"* Forwarded 'clear' for {ctx.message.author.nick}")
 
         group, text_channel = await get_info(ctx)
         user_id = ctx.message.author.id
@@ -217,7 +218,7 @@ def main():
 
     @bot.command(name="healer", help="Get next healer")
     async def get_healer(ctx):
-        print(f"* Handeled: 'healer' for {ctx.message.author.nick}")
+        print(f"* Forwarded 'healer' for {ctx.message.author.nick}")
 
         s: State = state.get()
         g: Group | None = s.get_group(ctx.channel)
@@ -232,7 +233,7 @@ def main():
 
     @bot.command(name="dps", help="Get next DPS")
     async def get_dps(ctx):
-        print(f"* Handeled: 'dps' for {ctx.message.author.nick}")
+        print(f"* Forwarded 'dps' for {ctx.message.author.nick}")
 
         s: State = state.get()
         g: Group | None = s.get_group(ctx.channel)
