@@ -28,4 +28,4 @@ class Task:
             return f"{self.user.name}"
 
     def __repr__(self):
-        return f"Task(user={self.user}, character={self.character}, roles={self.roles})"
+        return f"Task(user={self.user}, character={str(self.character)})"
