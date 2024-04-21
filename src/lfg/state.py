@@ -28,13 +28,15 @@ class State:
         new_group = Group(channel, owner)
         self.groups.append(new_group)
 
-    def remove_group(self, ctx: commands.Context):
+    def remove_group(self, channel: str):
         """remove group from groups list by channel name"""
-        logger(
-            ctx.channel.name,
-            f"Remove group '{ctx.channel}' with owner {ctx.message.author.global_name}",
-        )
-        self.groups = [group for group in self.groups if group.channel != ctx.channel]
+        group = self.get_group(channel)
+        if group:
+            logger(
+                group.channel,
+                f"Remove group '{group.channel}' with owner {group.owner.name}",
+            )
+            self.groups = [group for group in self.groups if group.channel != channel]
 
     def get_group(self, channel: str) -> Group | None:
         """find group by channel name"""

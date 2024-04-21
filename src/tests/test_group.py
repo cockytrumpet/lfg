@@ -1,6 +1,5 @@
 # pyright: basic
 import pytest
-from discord.ext import commands
 
 from lfg.group import Group
 from lfg.role import Role
@@ -16,7 +15,6 @@ def user() -> User:
 
 @pytest.fixture
 def group(user: User) -> Group:
-    roles = [Role.TANK, Role.HEALER, Role.DPS]
     return Group("test_channel", user)
 
 
