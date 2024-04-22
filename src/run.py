@@ -80,12 +80,11 @@ def main():
     async def lfg(ctx):
         group, text_channel = await get_info(ctx)
         s = state.get()
-        user = s.get_user(ctx.message.id) or User(ctx)
+        user = s.get_user(ctx)
 
         task = Task(
             user,
             "",
-            [],
         )
 
         if not task:
@@ -152,7 +151,7 @@ def main():
         user_id = ctx.message.author.id
         if user_id and group:
             user = User(ctx)
-            task = Task(user, character, roles)
+            task = Task(user, character)
             group.remove_character(task, roles)
 
     @bot.command(name="join", help="Join queues (<character> <roles>)")
@@ -161,14 +160,25 @@ def main():
             await ctx.send("Missing character or roles: !join <character> <roles>")
             return
 
+        s = state.get()
+        group, text_channel = await get_info(ctx)
+
+        if not group:
+            await ctx.send("No group in this channel. Start one with !lfg.")
+            return
+
         roles: list[Role] = make_roles(role_str)
-        user = User(ctx)
+
+        user = s.get_user(ctx)
+        user.add_character(character, roles)
+
         task = Task(
             user,
             character,
-            roles,
         )
-        group, text_channel = await get_info(ctx)
+
+        s.update_user(user)
+
         if group:
             q_str = ""
             for role in roles:

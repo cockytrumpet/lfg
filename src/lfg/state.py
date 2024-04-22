@@ -1,8 +1,9 @@
 # pyright: basic
+import pickle
+
 from discord.ext import commands
 
 from lfg.group import Group
-from lfg.role import Role
 from lfg.user import User
 from lfg.utils import logger
 
@@ -11,16 +12,41 @@ class State:
     def __init__(self):
         super().__init__()
         self.groups: list[Group] = []
-        # NOTE: maybe figure out persistent storage for this
         self.users: dict[int, User] = {}
+
+        self.reload_users()
+
+    def reload_users(self):
+        try:
+            with open("state.users.pickle", "rb") as f:
+                self.users = pickle.load(f)
+        except FileNotFoundError:
+            pass
 
     def update_user(self, user: User):
         """add/update to users dict"""
         self.users[user.id] = user
+        with open("state.users.pickle", "wb") as f:
+            pickle.dump(self.users, f)
 
-    def get_user(self, user_id: int) -> User | None:
-        """find user by id"""
-        return self.users.get(user_id, None)
+    def get_user(self, ctx: commands.Context) -> User:
+        """find user by context, calls update_user if not found"""
+        user = self.users.get(ctx.message.author.id)
+        if user is None:
+            user = User(ctx)
+            self.update_user(user)
+        return user
+
+    def get_user_by_id(self, id: int) -> User:
+        """find user by id, doesn't call update_user if not found"""
+        user = self.users.get(id)
+        if user is None:
+            user = User()
+            user.id = id
+            user.name = ""
+            user.nick = ""
+            user.characters = {}
+        return user
 
     def add_group(self, channel: str, owner: User):
         """create new group and add it to groups list"""
@@ -53,4 +79,9 @@ class State:
         return f"{len(self.groups)} group(s): {', '.join(str(group.channel) for group in self.groups)}"
 
     def __repr__(self):
-        return f"State({self.groups})"
+        char_list = []
+        for user in self.users.values():
+            for char in user.characters:
+                char_list.append(char.__str__())
+
+        return f"State({self.groups}, {', '.join(char_list)})"

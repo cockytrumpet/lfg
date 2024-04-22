@@ -1,61 +1,60 @@
 from lfg.group import Group
 from lfg.role import Role
 from lfg.state import State
-from lfg.user import Task
+from lfg.task import Task
+from lfg.user import User
+
+state = State()
 
 t = [Role.TANK]
 h = [Role.HEALER]
 d = [Role.DPS]
 
-user1 = Task(
-    user_id=1,
-    user_name="Adam",
-    disc_name="adam",
-    character="maerah",
-    roles=d + t,
-)
-user2 = Task(
-    user_id=2,
-    user_name="Adam",
-    disc_name="adam",
-    character="holysocks",
-    roles=h,
-)
-user3 = Task(
-    user_id=1,
-    user_name="Adam",
-    disc_name="adam",
-    character="maerah",
-    roles=h,
-)
-user4 = Task(
-    user_id=3,
-    user_name="Dave",
-    disc_name="dave123",
-    character="deadlyforce",
-    roles=t,
-)
-user5 = Task(
-    user_id=4,
-    user_name="gil",
-    disc_name="gil123",
-    character="shammy",
-    roles=h + d,
-)
+user1 = state.get_user_by_id(1)
+user1.name = "Adam"
+user1.nick = "adam"
 
-state = State()
-state.add_group("ch1", user1)
-group = state.get_group("ch1")
+user2 = state.get_user_by_id(2)
+user2.name = "Dave"
+user2.nick = "DeadlyForce"
 
-for user in [user1, user2, user3, user4, user5]:
-    for group_role in user.roles:
-        match group_role:
+user3 = state.get_user_by_id(3)
+user3.name = "Gil"
+user3.nick = "gilguy"
+
+user1.add_character("maerah", d)
+user2.add_character("deadlyforce", t)
+user3.add_character("shammy", h + d)
+
+tasks: list[Task] = [
+    Task(
+        user=user1,
+        character="maerah",
+    ),
+    Task(
+        user=user2,
+        character="deadlyforce",
+    ),
+    Task(
+        user=user3,
+        character="shammy",
+    ),
+]
+
+state.update_user(user1)
+state.update_user(user2)
+state.update_user(user3)
+state.add_group("alpha", user1)
+group = state.get_group("alpha")
+
+for task in tasks:
+    for role in task.roles:
+        match role:
             case Role.TANK:
-                group.add_tank(user)
+                group.add_tank(task)
             case Role.HEALER:
-                group.add_healer(user)
+                group.add_healer(task)
             case Role.DPS:
-                group.add_dps(user)
+                group.add_dps(task)
 
 print(state)
-print(group)

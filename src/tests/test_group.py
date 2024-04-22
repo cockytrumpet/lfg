@@ -26,7 +26,7 @@ def state() -> State:
 @pytest.fixture
 def task(user: User) -> Task:
     roles = [Role.TANK, Role.HEALER, Role.DPS]
-    return Task(user=user, character="test_user", roles=roles)
+    return Task(user=user, character="test_user")
 
 
 def test_group_init(user: User):
@@ -44,9 +44,9 @@ def test_group_owner(group: Group, user: User):
 
 
 def test_group_add_user(user: User, group: Group):
-    task1 = Task(user=user, character="user1", roles=[])
-    task2 = Task(user=user, character="user2", roles=[])
-    task3 = Task(user=user, character="user3", roles=[])
+    task1 = Task(user=user, character="user1")
+    task2 = Task(user=user, character="user2")
+    task3 = Task(user=user, character="user3")
 
     group.add_tank(task1)
     group.add_tank(task1)
@@ -76,7 +76,6 @@ def test_group_remove_user(group: Group, user: User):
         # disc_name="",
         user=user,
         character="dontmilkme",
-        roles=[],
     )
     group.add_dps(task)
 

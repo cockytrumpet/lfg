@@ -50,25 +50,25 @@ class Group:
         if len(self.tank_queue) == 0:
             return None
 
-        next = self.tank_queue.popleft()
-        self.remove_character(next)
-        return next
+        next_task = self.tank_queue.popleft()
+        self.remove_character(next_task)
+        return next_task
 
     def next_healer(self) -> Task | None:
         if len(self.healer_queue) == 0:
             return None
 
-        next = self.healer_queue.popleft()
-        self.remove_character(next)
-        return next
+        next_task = self.healer_queue.popleft()
+        self.remove_character(next_task)
+        return next_task
 
     def next_dps(self) -> Task | None:
         if len(self.dps_queue) == 0:
             return None
 
-        next = self.dps_queue.popleft()
-        self.remove_character(next)
-        return next
+        next_task = self.dps_queue.popleft()
+        self.remove_character(next_task)
+        return next_task
 
     def remove_character(
         self, task: Task, roles: list[Role] = [Role.TANK, Role.HEALER, Role.DPS]

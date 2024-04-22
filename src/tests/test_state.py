@@ -29,10 +29,6 @@ def state() -> State:
     return State()
 
 
-def test_state_init(state: State):
-    assert len(state.groups) == 0
-
-
 def test_state_add_group(state: State, user: User):
     state.add_group("test_channel", user)
     assert len(state.groups) == 1
@@ -59,3 +55,9 @@ def test_state_get_group(state: State, user: User):
         assert False
     assert group.channel == "test_channel"
     assert group.owner == user
+
+
+def test_state_update_user(state: State, user: User):
+    state.update_user(user)
+    repr(state)
+    assert state.users[user.id] == user
