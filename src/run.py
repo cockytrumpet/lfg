@@ -103,13 +103,47 @@ def main():
             else:
                 #  TODO: do something if owner has left voice channel
                 #        transfer ownership to another member?
-                await ctx.send(f"{user.name}'s group is active in this channel!")
+                await ctx.send(
+                    f"{user.name}'s group is active in this channel. They can use !yield to transfer ownership."
+                )
                 return
         else:
             s = state.get()
             s.add_group(ctx.channel, user)
 
         await ctx.send(f"{user.name} formed group in {ctx.channel}")
+
+    @bot.command(name="yield", help="Transfer ownership")
+    async def yieldgroup(ctx, name: str = ""):
+        if name == "":
+            await ctx.send("Missing name: !yield <name>")
+            return
+
+        group, text_channel = await get_info(ctx)
+
+        if not text_channel:
+            return
+        if not group:
+            await ctx.send(f"No group in {text_channel}. Start one with !lfg.")
+            return
+
+        if not group.is_owner(ctx.message.author.id):
+            await ctx.send(
+                f"Group {text_channel} is owned by {ctx.message.author.global_name}"
+            )
+            return
+
+        s = state.get()
+        user = s.get_user_by_name(name)
+
+        if not user or user.nick == "lfg":
+
+            await ctx.send(f"User {name} not found")
+            return
+
+        group.set_owner(user)
+
+        await ctx.send(f"Ownership transferred to @{user.nick}")
 
     @bot.command(name="bye", help="End group")
     async def endgroup(ctx):

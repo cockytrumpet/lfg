@@ -38,7 +38,7 @@ class State:
         return user
 
     def get_user_by_id(self, id: int) -> User:
-        """find user by id, doesn't call update_user if not found"""
+        """find user by id, doesn't call update_user"""
         user = self.users.get(id)
         if user is None:
             user = User()
@@ -47,6 +47,21 @@ class State:
             user.nick = ""
             user.characters = {}
         return user
+
+    def get_user_by_name(self, name: str) -> User | None:
+        """find user by name, doesn't call update_user"""
+        if name == "":
+            return None
+
+        if name[:2] == "<@":  # discord mention: '<@123456789012345678>'
+            user = self.get_user_by_id(int(name[2:-1]))
+            return user
+
+        for user in self.users.values():
+            if user.nick == name:
+                return user
+
+        return None
 
     def add_group(self, channel: str, owner: User):
         """create new group and add it to groups list"""
