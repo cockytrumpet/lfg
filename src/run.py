@@ -213,41 +213,50 @@ def main():
     @bot.command(name="tank", help="Get next tank")
     async def get_tank(ctx):
         s: State = state.get()
-        g: Group | None = s.get_group(ctx.channel)
+        group: Group | None = s.get_group(ctx.channel)
 
-        if g:
-            if next := g.next_tank():
-                await lfg(ctx)
-                await ctx.send(f"**Next tank: {next} @{next.user.nick}**")
+        if group:
+            if s.get_user(ctx).id == group.owner:
+                if next := group.next_tank():
+                    await lfg(ctx)
+                    await ctx.send(f"**Next tank: {next} @{next.user.nick}**")
+                else:
+                    await lfg(ctx)
+                    await ctx.send("**No tanks in queue**")
             else:
-                await lfg(ctx)
-                await ctx.send("**No tanks in queue**")
+                await ctx.send(f"Only {group.owner} can request next tank")
 
     @bot.command(name="healer", help="Get next healer")
     async def get_healer(ctx):
         s: State = state.get()
-        g: Group | None = s.get_group(ctx.channel)
+        group: Group | None = s.get_group(ctx.channel)
 
-        if g:
-            if next := g.next_healer():
-                await lfg(ctx)
-                await ctx.send(f"**Next healer: {next} @{next.user.nick}**")
+        if group:
+            if s.get_user(ctx).id == group.owner:
+                if next := group.next_healer():
+                    await lfg(ctx)
+                    await ctx.send(f"**Next healer: {next} @{next.user.nick}**")
+                else:
+                    await lfg(ctx)
+                    await ctx.send("**No healers in queue**")
             else:
-                await lfg(ctx)
-                await ctx.send("**No healers in queue**")
+                await ctx.send(f"Only {group.owner} can request next healer")
 
     @bot.command(name="dps", help="Get next DPS")
     async def get_dps(ctx):
         s: State = state.get()
-        g: Group | None = s.get_group(ctx.channel)
+        group: Group | None = s.get_group(ctx.channel)
 
-        if g:
-            if next := g.next_dps():
-                await lfg(ctx)
-                await ctx.send(f"**Next DPS: {next} @{next.user.nick}**")
+        if group:
+            if s.get_user(ctx).id == group.owner:
+                if next := group.next_dps():
+                    await lfg(ctx)
+                    await ctx.send(f"**Next DPS: {next} @{next.user.nick}**")
+                else:
+                    await lfg(ctx)
+                    await ctx.send("**No DPS in queue**")
             else:
-                await lfg(ctx)
-                await ctx.send("**No DPS in queue**")
+                await ctx.send(f"Only {group.owner} can request next DPS")
 
     bot.run(TOKEN)
 
