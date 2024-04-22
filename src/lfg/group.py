@@ -25,7 +25,7 @@ class Group:
         self.dps_queue: deque[Task] = Pretty_deque()
 
     def set_owner(self, owner: User):
-        print("* Set owner to {owner}")
+        logger(self.channel, f"Set owner to {owner}")
         self.owner = owner
 
     def is_owner(self, user_id: int) -> bool:
@@ -33,17 +33,17 @@ class Group:
 
     def add_tank(self, task: Task):
         if task not in self.tank_queue:
-            print(f"* Added {task} to tank queue")
+            logger(self.channel, f"Added {task} to tank queue")
             self.tank_queue.append(task)
 
     def add_healer(self, task: Task):
         if task not in self.healer_queue:
-            print(f"* Added {task} to healer queue")
+            logger(self.channel, f"Added {task} to healer queue")
             self.healer_queue.append(task)
 
     def add_dps(self, task: Task):
         if task not in self.dps_queue:
-            print(f"* Added {task} to DPS queue")
+            logger(self.channel, "* Added {task} to DPS queue")
             self.dps_queue.append(task)
 
     def next_tank(self) -> Task | None:
