@@ -40,7 +40,7 @@ def test_group_init(user: User):
 
 def test_group_owner(group: Group, user: User):
     group.set_owner(user)
-    assert group.is_owner(7)
+    assert group.is_owner(0)
 
 
 def test_group_add_user(user: User, group: Group):
@@ -80,7 +80,7 @@ def test_group_remove_user(group: Group, user: User):
     group.add_dps(task)
 
     assert len(group.dps_queue) == 1
-    assert group.dps_queue[0].user.name == "test_user"
+    assert group.dps_queue[0].character == "dontmilkme"
 
     returned_user = group.remove_user(task.user.id)
 
