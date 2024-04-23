@@ -37,30 +37,32 @@ class State:
             self.update_user(user)
         return user
 
-    def get_user_by_id(self, id: int) -> User:
+    def get_user_by_id(self, id: int) -> User | None:
         """find user by id, doesn't call update_user"""
         user = self.users.get(id)
-        if user is None:
-            user = User()
-            user.id = id
-            user.name = ""
-            user.nick = ""
-            user.characters = {}
-        return user
+        return user or None
 
     def get_user_by_name(self, name: str) -> User | None:
-        """find user by name, doesn't call update_user"""
+        """find user by name or nick, doesn't call update_user"""
         if name == "":
             return None
 
-        if name[:2] == "<@":  # discord mention: '<@123456789012345678>'
+        if name.startswith("<@"):
             user = self.get_user_by_id(int(name[2:-1]))
             return user
 
         for user in self.users.values():
-            if user.nick == name:
+            if user.name == name or user.nick == name:
                 return user
 
+        return None
+
+    def get_user_by_character(self, character: str) -> User | None:
+        """find user by character name, doesn't call update_user"""
+        for user in self.users.values():
+            for char in user.characters.keys():
+                if char == character:
+                    return user
         return None
 
     def add_group(self, channel: str, owner: User):

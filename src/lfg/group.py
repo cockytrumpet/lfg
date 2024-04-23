@@ -15,6 +15,18 @@ class Pretty_deque(deque):
         return f"{list(self)}"
 
 
+#  TODO: auto transfer ownership if owner leaves
+#        - how do to know if owner has left?
+#          - i'd like to listen for event that the owner has left the voice channel
+#          - is that possible?
+#          - if not, i'm going to have to check on a short timer
+#        - announce countdown to transfer ownership
+#        - start async task to wait 30 sec for owner to return
+#          - how to know if owner has returned?
+#          - if not, transfer ownership to next in any queue
+#          - if no one in queue, end group
+
+
 class Group:
     def __init__(self, channel: str, owner: User):
         super().__init__()
@@ -90,9 +102,9 @@ class Group:
                         r_str += "D"
 
         if r_str:
-            r_str = f"[{','.join(r_str)}]"
+            r_str = f"from [{','.join(r_str)}]"
 
-        logger(self.channel, f"Pop {task} from {r_str}")
+        logger(self.channel, f"Remove {task} {r_str}")
         return task
 
     def remove_user(self, user_id: int) -> User | None:

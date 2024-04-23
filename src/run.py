@@ -27,7 +27,7 @@ def main():
         print("DISCORD_TOKEN not set in .env file")
         exit(1)
 
-    intents = discord.Intents.all()
+    intents = discord.Intents.default()
     intents.message_content = True
 
     bot = commands.Bot(command_prefix="!", intents=intents)
@@ -101,8 +101,6 @@ def main():
                 await ctx.send(msg)
                 return
             else:
-                #  TODO: do something if owner has left voice channel
-                #        transfer ownership to another member?
                 await ctx.send(
                     f"{user.name}'s group is active in this channel. They can use !yield to transfer ownership."
                 )
@@ -167,26 +165,29 @@ def main():
 
         await ctx.send("Group ended!")
 
-    @bot.command(name="clear", help="Remove all from queues")
-    async def clear(ctx):
+    @bot.command(name="remove", help="Remove character or user from queues")
+    async def remove(ctx, name: str, roles_str: str = ""):
+        s = state.get()
         group, text_channel = await get_info(ctx)
-        user_id = ctx.message.author.id
-        if user_id and group:
-            group.remove_user(user_id)
+        user = s.get_user(ctx)
 
-    @bot.command(name="leave", help="Leave queues (<character> <roles>)")
-    async def leave(ctx, character: str = "", role_str: str = ""):
-        if character == "":
-            await ctx.send("Missing character: !leave <character> <roles>")
+        if not group:
+            await ctx.send("No group in this channel. Start one with !lfg.")
+            return
+        if group.owner != user:
+            await ctx.send("Only the group owner can remove characters.")
             return
 
-        roles: list[Role] = make_roles(role_str) or [Role.DPS, Role.HEALER, Role.TANK]
-        group, text_channel = await get_info(ctx)
-        user_id = ctx.message.author.id
-        if user_id and group:
-            user = User(ctx)
-            task = Task(user, character)
-            group.remove_character(task, roles)
+        found_user = s.get_user_by_name(name)
+
+        if found_user and found_user.id != 0:
+            group.remove_user(found_user.id)
+        else:
+            user = s.get_user_by_character(name)
+            if user:
+                roles = make_roles(roles_str) or [Role.DPS, Role.HEALER, Role.TANK]
+                task = Task(user, name)
+                group.remove_character(task, roles)
 
     @bot.command(name="join", help="Join queues (<character> <roles>)")
     async def join(ctx, character: str = "", role_str: str = ""):
@@ -237,12 +238,26 @@ def main():
             logger(text_channel, f"Queue {task} {q_str} in {text_channel}")
             await lfg(ctx)
 
-    @bot.command(name="debug", help="Print debug info")
-    async def debug(ctx):
-        logger(ctx.channel.name, f"Forward 'debug' for {ctx.message.author.nick}")
+    @bot.command(name="leave", help="Leave queues (<character> <roles>)")
+    async def leave(ctx, character: str = "", role_str: str = ""):
+        if character == "":
+            await ctx.send("Missing character: !leave <character> <roles>")
+            return
 
-        s = state.get()
-        await ctx.send(repr(s))
+        roles: list[Role] = make_roles(role_str) or [Role.DPS, Role.HEALER, Role.TANK]
+        group, text_channel = await get_info(ctx)
+        user_id = ctx.message.author.id
+        if user_id and group:
+            user = User(ctx)
+            task = Task(user, character)
+            group.remove_character(task, roles)
+
+    @bot.command(name="clear", help="Remove all from queues")
+    async def clear(ctx):
+        group, text_channel = await get_info(ctx)
+        user_id = ctx.message.author.id
+        if user_id and group:
+            group.remove_user(user_id)
 
     @bot.command(name="tank", help="Get next tank")
     async def get_tank(ctx):
@@ -291,6 +306,13 @@ def main():
                     await ctx.send("**No DPS in queue**")
             else:
                 await ctx.send(f"Only {group.owner} can request next DPS")
+
+    @bot.command(name="debug", help="Print debug info")
+    async def debug(ctx):
+        logger(ctx.channel.name, f"Forward 'debug' for {ctx.message.author.nick}")
+
+        s = state.get()
+        await ctx.send(repr(s))
 
     bot.run(TOKEN)
 

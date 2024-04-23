@@ -15,11 +15,11 @@ class User:
             guild_id: int = ctx.guild.id
             characters: dict[str, list[Role]] = {}
         else:
-            id: int = 7
-            name: str | None = "test_user"
-            nick: str | None = "test_nick"
-            guild_id: int = 123
-            characters: dict[str, list[Role]] = {"holysocks": [Role.HEALER]}
+            id: int = 0
+            name: str | None = ""
+            nick: str | None = ""
+            guild_id: int = 0
+            characters: dict[str, list[Role]] = {}
 
         self.id: int = id
         self.name: str | None = name
