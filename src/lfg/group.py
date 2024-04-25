@@ -1,5 +1,7 @@
 # pyright: basic
 from collections import deque
+from datetime import datetime
+from typing import Counter
 
 from lfg.role import Role
 from lfg.task import Task
@@ -15,16 +17,16 @@ class Pretty_deque(deque):
         return f"{list(self)}"
 
 
-#  TODO: auto transfer ownership if owner leaves
-#        - how do to know if owner has left?
-#          - i'd like to listen for event that the owner has left the voice channel
-#          - is that possible?
-#          - if not, i'm going to have to check on a short timer
-#        - announce countdown to transfer ownership
-#        - start async task to wait 30 sec for owner to return
-#          - how to know if owner has returned?
-#          - if not, transfer ownership to next in any queue
-#          - if no one in queue, end group
+class Vote:
+    def __init__(self, candidate: User):
+        self.candidate = candidate
+        self.timestamp = datetime.now()
+
+    def __repr__(self) -> str:
+        return str(self.candidate)
+
+    def __str__(self) -> str:
+        return f"Vote({self.candidate})"
 
 
 class Group:
@@ -32,6 +34,7 @@ class Group:
         super().__init__()
         self.channel: str = channel
         self.owner: User = owner
+        self.votes: deque[Vote] = Pretty_deque()
         self.tank_queue: deque[Task] = Pretty_deque()
         self.healer_queue: deque[Task] = Pretty_deque()
         self.dps_queue: deque[Task] = Pretty_deque()
@@ -42,6 +45,31 @@ class Group:
 
     def is_owner(self, user_id: int) -> bool:
         return self.owner.id == user_id
+
+    def add_vote(self, candidate: User):
+        self.votes.append(Vote(candidate))
+
+    def check_votes(self) -> User | None:
+        now = datetime.now()
+
+        while len(self.votes) > 0 and (now - self.votes[0].timestamp).seconds > 10:
+            _ = self.votes.popleft()
+
+        counter = dict()
+        for vote in self.votes:
+            if vote.candidate in counter:
+                counter[vote.candidate] += 1
+            else:
+                counter[vote.candidate] = 1
+
+        if len(counter) != 0:
+            max_votes = max(counter.values())
+            if max_votes > len(self.votes) // 2:
+                for candidate, votes in counter.items():
+                    if votes == max_votes:
+                        return candidate
+
+        return None
 
     def add_tank(self, task: Task):
         if task not in self.tank_queue:
@@ -128,7 +156,7 @@ class Group:
         return (self.tank_queue, self.healer_queue, self.dps_queue)
 
     def __repr__(self) -> str:  # pyright: ignore
-        return f"Group(channel={self.channel}, owner={self.owner}, tank_queue={self.tank_queue}, healer_queue={self.healer_queue}, dps_queue={self.dps_queue})"
+        return f"Group(channel={self.channel}, owner={self.owner}, votes={self.votes}, tank_queue={self.tank_queue}, healer_queue={self.healer_queue}, dps_queue={self.dps_queue})"
 
     def __str__(self) -> str:  # pyright: ignore
         tank = list(self.tank_queue)
@@ -140,7 +168,7 @@ class Group:
         d_len = len(dps)
         max_len = max(t_len, h_len, d_len)
 
-        output = f'{"\#":<4} {"**Tank**":<20} {"**Healer**":<20} {"**DPS**":<20}\n'
+        output = f'{"\#":<4} {"**Tank**":<20} {"**Healer**":<20} {"**DPS**":<20}\n'  # pyright: ignore
         output += "-" * len(output) + "\n"
 
         for i in range(max_len, -1, -1):

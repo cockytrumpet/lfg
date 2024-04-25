@@ -46,3 +46,7 @@ class User:
 
     def __repr__(self):
         return f"User(id={self.id}, name={self.name}, nick={self.nick}, guild_id={self.guild_id}, character_list={self.characters})"
+
+    def __hash__(self):
+        print(hash(str(self)))
+        return hash(str(self))

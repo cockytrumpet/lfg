@@ -10,7 +10,7 @@ def main():
     import os
 
     import discord
-    from discord.ext import commands
+    from discord.ext import commands, tasks
     from dotenv import load_dotenv
 
     from lfg.group import Group
@@ -64,9 +64,18 @@ def main():
 
     # -------------------- bot commands -------------------- #
 
+    @tasks.loop(seconds=10)
+    async def on_timer():
+        s = state.get()
+
+        for group in s.groups:
+            if new_owner := group.check_votes():
+                group.set_owner(new_owner)
+
     @bot.event
     async def on_ready():
         print(f"* {bot.user.name} connected to Discord")  # pyright: ignore
+        on_timer.start()
 
     @bot.event
     async def on_error(event, *args, _):
@@ -75,6 +84,28 @@ def main():
                 f.write(f"Unhandled message: {args[0]}\n")
             else:
                 raise
+
+    @bot.command(name="vote", help="Vote for new group owner")
+    async def vote(ctx, name: str = ""):
+        if name == "":
+            await ctx.send("Missing name: !vote <name>")
+            return
+        group, text_channel = await get_info(ctx)
+        if not text_channel:
+            return
+        if not group:
+            await ctx.send(f"No group in {text_channel}. Start one with !lfg.")
+            return
+        s = state.get()
+        user = s.get_user_by_name(name)
+        if not user or user.nick == "lfg":
+            await ctx.send(f"User {name} not found")
+            return
+        if user == group.owner:
+            await ctx.send(f"{name} is already the owner")
+            return
+        group.add_vote(user)
+        await ctx.send(f"{name} has been voted for")
 
     @bot.command(name="lfg", help="Form group/print status")
     async def lfg(ctx):
