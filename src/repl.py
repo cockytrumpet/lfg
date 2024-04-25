@@ -1,4 +1,4 @@
-from lfg.group import Group
+# from lfg.group import Group
 from lfg.role import Role
 from lfg.state import State
 from lfg.task import Task
@@ -10,15 +10,15 @@ t = [Role.TANK]
 h = [Role.HEALER]
 d = [Role.DPS]
 
-user1 = state.get_user_by_id(1)
+user1 = User()
 user1.name = "Adam"
 user1.nick = "adam"
 
-user2 = state.get_user_by_id(2)
+user2 = User()
 user2.name = "Dave"
 user2.nick = "DeadlyForce"
 
-user3 = state.get_user_by_id(3)
+user3 = User()
 user3.name = "Gil"
 user3.nick = "gilguy"
 
@@ -47,14 +47,15 @@ state.update_user(user3)
 state.add_group("alpha", user1)
 group = state.get_group("alpha")
 
-for task in tasks:
-    for role in task.roles:
-        match role:
-            case Role.TANK:
-                group.add_tank(task)
-            case Role.HEALER:
-                group.add_healer(task)
-            case Role.DPS:
-                group.add_dps(task)
+if group:
+    for task in tasks:
+        for role in task.roles:
+            match role:
+                case Role.TANK:
+                    group.add_tank(task)
+                case Role.HEALER:
+                    group.add_healer(task)
+                case Role.DPS:
+                    group.add_dps(task)
 
 print(state)
