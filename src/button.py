@@ -33,15 +33,18 @@ class SelectView(
         return "".join(roles)
 
     @discord.ui.button(
-        label="New character...", style=discord.ButtonStyle.primary, row=0
+        label="New character...", style=discord.ButtonStyle.secondary, row=0
     )
-    async def new_character(self, button, interaction):
+    async def new_character(
+        self, button: discord.ui.Button, interaction: discord.Interaction
+    ):
         modal = NewModal(parent=self)
         await interaction.response.send_modal(modal)
         await modal.wait()
 
         if self.character != "":
             self.children[1].add_option(label=self.character, default=True)
+            await interaction.edit(view=self)
 
     def get_options(self) -> list[SelectOption]:
         options: list[SelectOption] = [
@@ -51,7 +54,8 @@ class SelectView(
         if self.character != "":
             options.append(
                 discord.SelectOption(
-                    label=self.character, value=self.character, default=True
+                    label=self.character,
+                    value=self.character,  # default=True
                 )
             )
 
@@ -62,7 +66,7 @@ class SelectView(
         options=[discord.SelectOption(label=x) for x in ["Holysocks", "Maerah"]],
     )
     async def select_callback(self, select, interaction):
-        self.character = select.values[0]
+        select.placeholder = select.values[0]
         await interaction.response.edit_message(view=self)
 
     @discord.ui.button(label="", style=discord.ButtonStyle.secondary, emoji="🛡️", row=2)

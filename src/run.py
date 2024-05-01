@@ -14,6 +14,7 @@ def main():
     from dotenv import load_dotenv
 
     from lfg.group import Group
+    from lfg.modal import JoinModal
     from lfg.role import Role
     from lfg.state import State
     from lfg.task import Task
@@ -27,10 +28,10 @@ def main():
         print("DISCORD_TOKEN not set in .env file")
         exit(1)
 
-    intents = discord.Intents.default()
+    intents = discord.Intents.all()
     intents.message_content = True
 
-    bot = commands.Bot(command_prefix="!", intents=intents)
+    bot = discord.Bot(command_prefix="!", intents=intents)
 
     state = contextvars.ContextVar("state", default=State())
 
@@ -63,6 +64,11 @@ def main():
         return roles
 
     # -------------------- bot commands -------------------- #
+    @bot.slash_command(name="modaltest")
+    async def modal_slash(ctx: discord.ApplicationContext):
+        """Shows an example of a modal dialog being invoked from a slash command."""
+        modal = JoinModal(title="Join Queue")
+        await ctx.send_modal(modal)
 
     @tasks.loop(seconds=10)
     async def on_timer():
@@ -296,7 +302,7 @@ def main():
         group: Group | None = s.get_group(ctx.channel)
 
         if group:
-            if s.get_user(ctx).id == group.owner:
+            if s.get_user(ctx) == group.owner:
                 if next := group.next_tank():
                     await lfg(ctx)
                     await ctx.send(f"**Next tank: {next} @{next.user.nick}**")
@@ -312,7 +318,7 @@ def main():
         group: Group | None = s.get_group(ctx.channel)
 
         if group:
-            if s.get_user(ctx).id == group.owner:
+            if s.get_user(ctx) == group.owner:
                 if next := group.next_healer():
                     await lfg(ctx)
                     await ctx.send(f"**Next healer: {next} @{next.user.nick}**")
@@ -328,7 +334,7 @@ def main():
         group: Group | None = s.get_group(ctx.channel)
 
         if group:
-            if s.get_user(ctx).id == group.owner:
+            if s.get_user(ctx) == group.owner:
                 if next := group.next_dps():
                     await lfg(ctx)
                     await ctx.send(f"**Next DPS: {next} @{next.user.nick}**")
