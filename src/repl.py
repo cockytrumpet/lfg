@@ -1,4 +1,5 @@
-# from lfg.group import Group
+# for debugging use with ipython -i repl.py
+
 from lfg.role import Role
 from lfg.state import State
 from lfg.task import Task
