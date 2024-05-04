@@ -21,6 +21,21 @@ class SelectView(
         self.ctx: discord.Interaction = ctx
         self.options: list[SelectOption] = self.get_options()
 
+    def get_options(self) -> list[SelectOption]:
+        options: list[SelectOption] = [
+            discord.SelectOption(label="Reinhardt"),
+            discord.SelectOption(label="Zarya"),
+        ]
+        if self.character != "":
+            options.append(
+                discord.SelectOption(
+                    label=self.character,
+                    value=self.character,  # default=True
+                )
+            )
+
+        return options
+
     @property
     def roles(self) -> str:
         roles = []
@@ -42,32 +57,19 @@ class SelectView(
         await interaction.response.send_modal(modal)
         await modal.wait()
 
-        if self.character != "":
-            self.children[1].add_option(label=self.character, default=True)
+        if modal.children[0].value != "":
+            self.character = modal.children[0].value
+            self.children[1].add_option(label=self.character)  # , default=True)
             await interaction.edit(view=self)
-
-    def get_options(self) -> list[SelectOption]:
-        options: list[SelectOption] = [
-            discord.SelectOption(label="Reinhardt"),
-            discord.SelectOption(label="Zarya"),
-        ]
-        if self.character != "":
-            options.append(
-                discord.SelectOption(
-                    label=self.character,
-                    value=self.character,  # default=True
-                )
-            )
-
-        return options
 
     @discord.ui.string_select(
         placeholder="Recent characters",
         options=[discord.SelectOption(label=x) for x in ["Holysocks", "Maerah"]],
     )
     async def select_callback(self, select, interaction):
-        select.placeholder = select.values[0]
-        await interaction.response.edit_message(view=self)
+        self.character = select.values[0]
+        select.placeholder = self.character  # NOTE: is this really the best way?
+        await interaction.response.defer(invisible=True)
 
     @discord.ui.button(label="", style=discord.ButtonStyle.secondary, emoji="🛡️", row=2)
     async def button_callback1(self, button, interaction):
@@ -106,7 +108,8 @@ class SelectView(
     async def confirm_callback(
         self, button: discord.ui.Button, interaction: discord.Interaction
     ):
-        await interaction.response.send_message("Confirming", ephemeral=True)
+        await interaction.response.send_message("Confirming")
+        # do stuff
         self.stop()
 
     # This one is similar to the confirmation button except sets the inner value to `False`.
@@ -114,7 +117,8 @@ class SelectView(
     async def cancel_callback(
         self, button: discord.ui.Button, interaction: discord.Interaction
     ):
-        await interaction.response.send_message("Cancelling", ephemeral=True)
+        await interaction.response.send_message("Cancelling")
+        # do stuff
         self.stop()
 
 
@@ -132,7 +136,7 @@ class NewModal(discord.ui.Modal):
 
     async def callback(self, interaction: discord.Interaction):
         # self.character = self.children[0].value or "ERROR"
-        self.parent.character = self.children[0].value or "ERROR"
+        self.character = self.children[0].value or "ERROR"
         await interaction.response.defer(invisible=True)
         # await interaction.response.edit_message(view=self.parent)
 
@@ -141,7 +145,7 @@ class NewModal(discord.ui.Modal):
 async def join(ctx: discord.Interaction):
     view = SelectView(ctx)
 
-    await ctx.respond("Select character and roles", view=view)
+    await ctx.respond("Select character and roles", view=view, ephemeral=True)
     await view.wait()  # Wait for the user to click the button
     # FIXME: just seeing what happens
     # if view.submitted is False:
@@ -149,7 +153,9 @@ async def join(ctx: discord.Interaction):
     #     await ctx.respond("Cancelling", ephemeral=True)
     #     return
     #
+
     await ctx.respond(f"call !join {view.character} {view.roles}")
+    view.stop()
 
 
 bot.run(TOKEN)  # Run the bot
