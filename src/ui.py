@@ -53,7 +53,7 @@ class SelectView(
     async def new_character(
         self, button: discord.ui.Button, interaction: discord.Interaction
     ):
-        modal = NewModal(parent=self)
+        modal = NewModal()
         await interaction.response.send_modal(modal)
         await modal.wait()
 
@@ -123,7 +123,7 @@ class SelectView(
 
 
 class NewModal(discord.ui.Modal):
-    def __init__(self, *args, parent: SelectView, **kwargs) -> None:
+    def __init__(self, *args, **kwargs) -> None:
         super().__init__(
             discord.ui.InputText(
                 label="Character",
@@ -132,13 +132,10 @@ class NewModal(discord.ui.Modal):
             title="New character",
             **kwargs,
         )
-        self.parent = parent
 
     async def callback(self, interaction: discord.Interaction):
-        # self.character = self.children[0].value or "ERROR"
         self.character = self.children[0].value or "ERROR"
         await interaction.response.defer(invisible=True)
-        # await interaction.response.edit_message(view=self.parent)
 
 
 @bot.slash_command()  # Create a slash command
@@ -147,12 +144,12 @@ async def join(ctx: discord.Interaction):
 
     await ctx.respond("Select character and roles", view=view, ephemeral=True)
     await view.wait()  # Wait for the user to click the button
-    # FIXME: just seeing what happens
+
+    # WARN: Is this needed?
     # if view.submitted is False:
     #     print("Timed out...")
     #     await ctx.respond("Cancelling", ephemeral=True)
     #     return
-    #
 
     await ctx.respond(f"call !join {view.character} {view.roles}")
     view.stop()
