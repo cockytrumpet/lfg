@@ -10,18 +10,16 @@ def main():
     import os
 
     import discord
-    from discord.ext import commands, tasks
-    from dotenv import load_dotenv
+    from discord.ext import tasks
 
     from lfg.group import Group
-    from lfg.modal import JoinModal
+    from lfg.join_ui import JoinView
     from lfg.role import Role
     from lfg.state import State
     from lfg.task import Task
     from lfg.user import User
     from lfg.utils import logger
 
-    load_dotenv()
     TOKEN = os.getenv("DISCORD_TOKEN")
 
     if not TOKEN:
@@ -38,7 +36,7 @@ def main():
     # ------------------ helper functions ------------------ #
 
     async def get_info(ctx) -> tuple[Group | None, str | None]:
-        if ctx.message.channel.type == discord.ChannelType.voice:
+        if ctx.message and ctx.message.channel.type == discord.ChannelType.voice:
             text_channel = ctx.channel
         else:
             await ctx.send("Looking for group? Join a voice channel!")
@@ -63,13 +61,9 @@ def main():
 
         return roles
 
-    # -------------------- bot commands -------------------- #
-    @bot.slash_command(name="modaltest")
-    async def modal_slash(ctx: discord.ApplicationContext):
-        """Shows an example of a modal dialog being invoked from a slash command."""
-        modal = JoinModal(title="Join Queue")
-        await ctx.send_modal(modal)
+    # ------------------ slash commands -------------------- #
 
+    # -------------------- bot commands -------------------- #
     @tasks.loop(seconds=10)
     async def on_timer():
         s = state.get()
@@ -228,16 +222,29 @@ def main():
 
     @bot.command(name="join", help="Join queues (<character> <roles>)")
     async def join(ctx, character: str = "", role_str: str = ""):
-        if not character or not role_str:
-            await ctx.send("Missing character or roles: !join <character> <roles>")
-            return
-
         s = state.get()
         group, text_channel = await get_info(ctx)
 
         if not group:
             await ctx.send("No group in this channel. Start one with !lfg.")
             return
+
+        if not character or not role_str:
+            view = JoinView()
+
+            await ctx.respond("Select character and roles", view=view, ephemeral=True)
+            await view.wait()  # Wait for the user to click the button
+
+            # WARN: Is this needed?
+            # if view.submitted is False:
+            #     print("Timed out...")
+            #     await ctx.respond("Cancelling", ephemeral=True)
+            #     return
+
+            character = view.character
+            role_str = view.roles
+
+            view.stop()
 
         roles: list[Role] = make_roles(role_str)
 
@@ -305,7 +312,9 @@ def main():
             if s.get_user(ctx) == group.owner:
                 if next := group.next_tank():
                     await lfg(ctx)
-                    await ctx.send(f"**Next tank: {next} @{next.user.nick}**")
+                    await ctx.send(
+                        f"**Next tank: {next} @{next.user.nick}**", mention_author=True
+                    )
                 else:
                     await lfg(ctx)
                     await ctx.send("**No tanks in queue**")
