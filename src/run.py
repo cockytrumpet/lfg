@@ -10,7 +10,8 @@ def main():
     import os
 
     import discord
-    from discord.ext import tasks
+    from discord.ext import commands, tasks
+    from discord.ext.commands import Context
 
     from lfg.group import Group
     from lfg.join_ui import JoinView
@@ -26,17 +27,17 @@ def main():
         print("DISCORD_TOKEN not set in .env file")
         exit(1)
 
-    intents = discord.Intents.all()
+    intents = discord.Intents.default()
     intents.message_content = True
 
-    bot = discord.Bot(command_prefix="!", intents=intents)
+    bot = commands.Bot(command_prefix="!", intents=intents)
 
     state = contextvars.ContextVar("state", default=State())
 
     # ------------------ helper functions ------------------ #
 
-    async def get_info(ctx) -> tuple[Group | None, str | None]:
-        if ctx.message and ctx.message.channel.type == discord.ChannelType.voice:
+    async def get_info(ctx: Context) -> tuple[Group | None, str | None]:
+        if ctx.message.channel.type == discord.ChannelType.voice:
             text_channel = ctx.channel
         else:
             await ctx.send("Looking for group? Join a voice channel!")
@@ -61,9 +62,8 @@ def main():
 
         return roles
 
-    # ------------------ slash commands -------------------- #
-
     # -------------------- bot commands -------------------- #
+
     @tasks.loop(seconds=10)
     async def on_timer():
         s = state.get()
@@ -86,7 +86,7 @@ def main():
                 raise
 
     @bot.command(name="vote", help="Vote for new group owner")
-    async def vote(ctx, name: str = ""):
+    async def vote(ctx: Context, name: str = ""):
         if name == "":
             await ctx.send("Missing name: !vote <name>")
             return
@@ -108,7 +108,7 @@ def main():
         await ctx.send(f"{name} has been voted for")
 
     @bot.command(name="lfg", help="Form group/print status")
-    async def lfg(ctx):
+    async def lfg(ctx: Context):
         group, text_channel = await get_info(ctx)
         s = state.get()
         user = s.get_user(ctx)
@@ -143,7 +143,7 @@ def main():
         await ctx.send(f"{user.name} formed group in {ctx.channel}")
 
     @bot.command(name="yield", help="Transfer ownership")
-    async def yieldgroup(ctx, name: str = ""):
+    async def yieldgroup(ctx: Context, name: str = ""):
         if name == "":
             await ctx.send("Missing name: !yield <name>")
             return
@@ -175,7 +175,7 @@ def main():
         await ctx.send(f"Ownership transferred to @{user.nick}")
 
     @bot.command(name="bye", help="End group")
-    async def endgroup(ctx):
+    async def endgroup(ctx: Context):
         group, text_channel = await get_info(ctx)
 
         if not text_channel:
@@ -197,7 +197,7 @@ def main():
         await ctx.send("Group ended!")
 
     @bot.command(name="remove", help="Remove character or user from queues")
-    async def remove(ctx, name: str, roles_str: str = ""):
+    async def remove(ctx: Context, name: str, roles_str: str = ""):
         s = state.get()
         group, text_channel = await get_info(ctx)
         user = s.get_user(ctx)
@@ -221,7 +221,7 @@ def main():
                 group.remove_character(task, roles)
 
     @bot.command(name="join", help="Join queues (<character> <roles>)")
-    async def join(ctx, character: str = "", role_str: str = ""):
+    async def join(ctx: Context, character: str = "", role_str: str = ""):
         s = state.get()
         group, text_channel = await get_info(ctx)
 
@@ -229,21 +229,13 @@ def main():
             await ctx.send("No group in this channel. Start one with !lfg.")
             return
 
-        if not character or not role_str:
+        if not character and not role_str:
             view = JoinView()
-
-            await ctx.respond("Select character and roles", view=view, ephemeral=True)
+            await ctx.send("Select character and roles", view=view)
             await view.wait()  # Wait for the user to click the button
-
-            # WARN: Is this needed?
-            # if view.submitted is False:
-            #     print("Timed out...")
-            #     await ctx.respond("Cancelling", ephemeral=True)
-            #     return
 
             character = view.character
             role_str = view.roles
-
             view.stop()
 
         roles: list[Role] = make_roles(role_str)
@@ -283,7 +275,7 @@ def main():
             await lfg(ctx)
 
     @bot.command(name="leave", help="Leave queues (<character> <roles>)")
-    async def leave(ctx, character: str = "", role_str: str = ""):
+    async def leave(ctx: Context, character: str = "", role_str: str = ""):
         if character == "":
             await ctx.send("Missing character: !leave <character> <roles>")
             return
@@ -297,14 +289,14 @@ def main():
             group.remove_character(task, roles)
 
     @bot.command(name="clear", help="Remove all from queues")
-    async def clear(ctx):
+    async def clear(ctx: Context):
         group, text_channel = await get_info(ctx)
         user_id = ctx.message.author.id
         if user_id and group:
             group.remove_user(user_id)
 
     @bot.command(name="tank", help="Get next tank")
-    async def get_tank(ctx):
+    async def get_tank(ctx: Context):
         s: State = state.get()
         group: Group | None = s.get_group(ctx.channel)
 
@@ -312,9 +304,7 @@ def main():
             if s.get_user(ctx) == group.owner:
                 if next := group.next_tank():
                     await lfg(ctx)
-                    await ctx.send(
-                        f"**Next tank: {next} @{next.user.nick}**", mention_author=True
-                    )
+                    await ctx.send(f"**Next tank: {next} @{next.user.nick}**")
                 else:
                     await lfg(ctx)
                     await ctx.send("**No tanks in queue**")
@@ -322,7 +312,7 @@ def main():
                 await ctx.send(f"Only {group.owner} can request next tank")
 
     @bot.command(name="healer", help="Get next healer")
-    async def get_healer(ctx):
+    async def get_healer(ctx: Context):
         s: State = state.get()
         group: Group | None = s.get_group(ctx.channel)
 
@@ -338,7 +328,7 @@ def main():
                 await ctx.send(f"Only {group.owner} can request next healer")
 
     @bot.command(name="dps", help="Get next DPS")
-    async def get_dps(ctx):
+    async def get_dps(ctx: Context):
         s: State = state.get()
         group: Group | None = s.get_group(ctx.channel)
 
@@ -354,7 +344,7 @@ def main():
                 await ctx.send(f"Only {group.owner} can request next DPS")
 
     @bot.command(name="debug", help="Print debug info")
-    async def debug(ctx):
+    async def debug(ctx: Context):
         logger(ctx.channel.name, f"Forward 'debug' for {ctx.message.author.nick}")
 
         s = state.get()
