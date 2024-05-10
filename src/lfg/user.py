@@ -1,4 +1,7 @@
 # pyright: basic
+from typing import Optional
+
+from discord import SelectOption
 from discord.ext import commands
 
 from lfg.role import Role
@@ -28,7 +31,11 @@ class User:
         self.characters: dict[str, list[Role]] = characters
 
     def add_character(self, character: str, roles: list[Role]):
-        self.characters[character] = roles
+        """add to user.characters dict"""
+        if not roles:
+            return
+        if roles:
+            self.characters[character] = roles
 
     def get_last_roles(self, character: str) -> list[Role]:
         if character in self.characters:
@@ -37,6 +44,42 @@ class User:
 
     def get_characters(self) -> dict[str, list[Role]]:
         return self.characters
+
+    @classmethod
+    def roles_to_str(cls, roles: list[Role]) -> str:
+        ret_str = ""
+        for role in roles:
+            match role:
+                case Role.TANK:
+                    ret_str += "t"
+                case Role.HEALER:
+                    ret_str += "h"
+                case Role.DPS:
+                    ret_str += "d"
+        return ret_str
+
+    @classmethod
+    def str_to_roles(cls, role_str: str) -> list[Role]:
+        roles = set()
+        for letter in role_str:
+            match letter.lower():
+                case "t":
+                    roles.add(Role.TANK)
+                case "h":
+                    roles.add(Role.HEALER)
+                case "d":
+                    roles.add(Role.DPS)
+        return list(roles)
+
+    def get_select_options(self) -> list[SelectOption] | None:
+        options: list[SelectOption] = []
+        for name, roles in self.characters.items():
+            if roles:
+                roles = self.roles_to_str(roles)
+                options.append(SelectOption(label=name, value=f"{name}.{roles}"))
+            else:
+                assert False
+        return options
 
     def __eq__(self, other):
         return self.id == other.id

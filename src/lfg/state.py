@@ -17,6 +17,7 @@ class State:
         self.reload_users()
 
     def reload_users(self):
+        """reload pickled users"""
         try:
             with open("state.users.pickle", "rb") as f:
                 self.users = pickle.load(f)
@@ -29,12 +30,12 @@ class State:
         with open("state.users.pickle", "wb") as f:
             pickle.dump(self.users, f)
 
-    def get_user(self, ctx: commands.Context) -> User:
+    def get_user(self, ctx: commands.Context) -> User | None:
         """find user by context, calls update_user if not found"""
         user = self.users.get(ctx.message.author.id)
-        if user is None:
-            user = User(ctx)
-            self.update_user(user)
+        # if user is None:
+        #     user = User(ctx)
+        #     self.update_user(user)
         return user
 
     def get_user_by_id(self, id: int) -> User | None:

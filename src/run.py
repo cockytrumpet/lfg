@@ -44,23 +44,9 @@ def main():
             return (None, None)
 
         s = state.get()
-        group = s.get_group(text_channel)
+        group = s.get_group(text_channel.name)
 
-        return (group, text_channel)
-
-    def make_roles(role_str: str) -> list[Role]:
-        role_str = role_str.upper()
-        roles: list[Role] = []
-
-        if role_str:
-            if "T" in role_str:
-                roles.append(Role.TANK)
-            if "H" in role_str:
-                roles.append(Role.HEALER)
-            if "D" in role_str:
-                roles.append(Role.DPS)
-
-        return roles
+        return (group, text_channel.name)
 
     # -------------------- bot commands -------------------- #
 
@@ -138,7 +124,7 @@ def main():
                 return
         else:
             s = state.get()
-            s.add_group(ctx.channel, user)
+            s.add_group(ctx.channel.name, user)
 
         await ctx.send(f"{user.name} formed group in {ctx.channel}")
 
@@ -216,39 +202,52 @@ def main():
         else:
             user = s.get_user_by_character(name)
             if user:
-                roles = make_roles(roles_str) or [Role.DPS, Role.HEALER, Role.TANK]
+                roles = user.str_to_roles(roles_str) or [
+                    Role.DPS,
+                    Role.HEALER,
+                    Role.TANK,
+                ]
                 task = Task(user, name)
                 group.remove_character(task, roles)
 
     @bot.command(name="join", help="Join queues (<character> <roles>)")
     async def join(ctx: Context, character: str = "", role_str: str = ""):
         s = state.get()
+        s.reload_users()
+        user = s.get_user(ctx)
         group, text_channel = await get_info(ctx)
+
+        assert user
 
         if not group:
             await ctx.send("No group in this channel. Start one with !lfg.")
             return
 
         if not character and not role_str:
-            view = JoinView()
+            view = JoinView(user)
+            view.update_options()
+
             await ctx.send("Select character and roles", view=view)
             await view.wait()  # Wait for the user to click the button
 
             character = view.character
             role_str = view.roles
-            view.stop()
 
-        roles: list[Role] = make_roles(role_str)
+            if not character or not role_str:
+                # delete the message if no character
+                await ctx.message.delete()
+                return
 
-        user = s.get_user(ctx)
-        user.add_character(character, roles)
+            user.add_character(character, user.str_to_roles(view.roles))
+            s.update_user(user)
 
+            # view.stop()
+
+        roles: list[Role] = user.str_to_roles(role_str)
         task = Task(
             user,
             character,
         )
-
-        s.update_user(user)
 
         if group:
             q_str = ""
@@ -271,7 +270,9 @@ def main():
 
             if not text_channel:
                 text_channel = "FIXME"
+
             logger(text_channel, f"Queue {task} {q_str} in {text_channel}")
+            await ctx.message.delete()  # FIX: can't delete or edit?
             await lfg(ctx)
 
     @bot.command(name="leave", help="Leave queues (<character> <roles>)")
@@ -280,9 +281,14 @@ def main():
             await ctx.send("Missing character: !leave <character> <roles>")
             return
 
-        roles: list[Role] = make_roles(role_str) or [Role.DPS, Role.HEALER, Role.TANK]
-        group, text_channel = await get_info(ctx)
-        user_id = ctx.message.author.id
+        s = state.get()
+        user = s.get_user(ctx)
+        group, _ = await get_info(ctx)
+        roles: list[Role] = user.str_to_roles(role_str) or [
+            Role.DPS,
+            Role.HEALER,
+            Role.TANK,
+        ]
         if user_id and group:
             user = User(ctx)
             task = Task(user, character)
@@ -298,7 +304,7 @@ def main():
     @bot.command(name="tank", help="Get next tank")
     async def get_tank(ctx: Context):
         s: State = state.get()
-        group: Group | None = s.get_group(ctx.channel)
+        group: Group | None = s.get_group(ctx.channel.name)
 
         if group:
             if s.get_user(ctx) == group.owner:
@@ -314,7 +320,7 @@ def main():
     @bot.command(name="healer", help="Get next healer")
     async def get_healer(ctx: Context):
         s: State = state.get()
-        group: Group | None = s.get_group(ctx.channel)
+        group: Group | None = s.get_group(ctx.channel.name)
 
         if group:
             if s.get_user(ctx) == group.owner:
@@ -330,7 +336,7 @@ def main():
     @bot.command(name="dps", help="Get next DPS")
     async def get_dps(ctx: Context):
         s: State = state.get()
-        group: Group | None = s.get_group(ctx.channel)
+        group: Group | None = s.get_group(ctx.channel.name)
 
         if group:
             if s.get_user(ctx) == group.owner:
@@ -343,7 +349,7 @@ def main():
             else:
                 await ctx.send(f"Only {group.owner} can request next DPS")
 
-    @bot.command(name="debug", help="Print debug info")
+    @bot.command(name="debug", help="Print debug info", hidden=True)
     async def debug(ctx: Context):
         logger(ctx.channel.name, f"Forward 'debug' for {ctx.message.author.nick}")
 
