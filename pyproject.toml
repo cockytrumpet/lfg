@@ -2,4 +2,4 @@
 name = "lfg"
 
 defineConstant = { DEBUG = true }
-reportUnusedVariable  = false
+reportUnusedFunction  = false

@@ -1,6 +1,5 @@
-# pyright: basic
-# pyright: ignore[reportUnusedFunction]
-
+# pyright: reportUnusedFunction=false
+# TODO: add categories to !help
 if __name__ == "__main__" and __package__ is None:
     __package__ = "lfg"
 
@@ -16,6 +15,8 @@ def main():
     from lfg.group import Group
     from lfg.join_ui import JoinView
     from lfg.role import Role
+
+    # from lfg.show_ui import ShowView
     from lfg.state import State
     from lfg.task import Task
     from lfg.user import User
@@ -47,6 +48,75 @@ def main():
         group = s.get_group(text_channel.name)
 
         return (group, text_channel.name)
+
+    # FIX: refactor this, oh my
+    async def show_group(ctx: Context, title: str = "") -> None:
+        group, _ = await get_info(ctx)
+
+        # if group:
+        #     view = ShowView(group)
+        #     view.set_buttons()
+        #     await ctx.send(view=view)
+
+        fields = []
+
+        tank = list(group.tank_queue) if group else []
+        healer = list(group.healer_queue) if group else []
+        dps = list(group.dps_queue) if group else []
+
+        t_depth = len(tank)
+        h_depth = len(healer)
+        d_depth = len(dps)
+        max_depth = max(t_depth, h_depth, d_depth)
+        max_len = 0
+
+        len_test = tank[0:t_depth] if t_depth < max_depth else tank[0:max_depth]
+        len_test += healer[0:h_depth] if h_depth < max_depth else healer[0:max_depth]
+        len_test += dps[0:d_depth] if d_depth < max_depth else dps[0:max_depth]
+
+        for task in len_test:
+            length = len(str(task))
+            if length > max_len:
+                max_len = length
+
+        fields.extend(
+            [
+                # discord.EmbedField(
+                #     name="#",
+                #     value="\n".join(str(x) for x in range(min(max_depth, 24))),
+                #     inline=True,
+                # ),
+                discord.EmbedField(
+                    name="Tank",
+                    value="\n".join(str(task) for task in tank),
+                    inline=True,
+                ),
+                discord.EmbedField(
+                    name="Healer",
+                    value="\n".join(str(task) for task in healer),
+                    inline=True,
+                ),
+                discord.EmbedField(
+                    name="DPS",
+                    value="\n".join(str(task) for task in dps),
+                    inline=True,
+                ),
+            ]
+        )
+
+        if not tank and not healer:
+            color = discord.Color.red()
+        elif not tank or not healer:
+            color = discord.Color.gold()
+        else:
+            color = discord.Color.green()
+
+        embed = discord.Embed(
+            title=title if title else None,
+            fields=fields,
+            color=color,
+        )
+        await ctx.send(embeds=[embed])
 
     # -------------------- bot commands -------------------- #
 
@@ -95,38 +165,20 @@ def main():
 
     @bot.command(name="lfg", help="Form group/print status")
     async def lfg(ctx: Context):
-        group, text_channel = await get_info(ctx)
+        group, _ = await get_info(ctx)
         s = state.get()
         user = s.get_user(ctx)
 
-        task = Task(
-            user,
-            "",
-        )
-
-        if not task:
-            await ctx.send("Error: No user found!")
-            return
-
-        if not text_channel:
-            print("Error: No text channel found!")
-            return
+        assert user
 
         if group:
-            if group.is_owner(user.id):
-                msg = str(group)
-                await ctx.send(msg)
-                return
-            else:
-                await ctx.send(
-                    f"{user.name}'s group is active in this channel. They can use !yield to transfer ownership."
-                )
-                return
+            # msg = str(group)
+            # await ctx.send(msg)
+            await show_group(ctx)
         else:
             s = state.get()
             s.add_group(ctx.channel.name, user)
-
-        await ctx.send(f"{user.name} formed group in {ctx.channel}")
+            await ctx.send(f"{user.name} formed group in {ctx.channel}")
 
     @bot.command(name="yield", help="Transfer ownership")
     async def yieldgroup(ctx: Context, name: str = ""):
@@ -185,7 +237,7 @@ def main():
     @bot.command(name="remove", help="Remove character or user from queues")
     async def remove(ctx: Context, name: str, roles_str: str = ""):
         s = state.get()
-        group, text_channel = await get_info(ctx)
+        group, _ = await get_info(ctx)
         user = s.get_user(ctx)
 
         if not group:
@@ -272,8 +324,8 @@ def main():
                 text_channel = "FIXME"
 
             logger(text_channel, f"Queue {task} {q_str} in {text_channel}")
-            await ctx.message.delete()  # FIX: can't delete or edit?
-            await lfg(ctx)
+            # await ctx.message.delete()  # FIX: can't delete or edit?
+            await show_group(ctx)
 
     @bot.command(name="leave", help="Leave queues (<character> <roles>)")
     async def leave(ctx: Context, character: str = "", role_str: str = ""):
@@ -284,19 +336,23 @@ def main():
         s = state.get()
         user = s.get_user(ctx)
         group, _ = await get_info(ctx)
-        roles: list[Role] = user.str_to_roles(role_str) or [
-            Role.DPS,
-            Role.HEALER,
-            Role.TANK,
-        ]
-        if user_id and group:
+        roles = (
+            user.str_to_roles(role_str)
+            if user
+            else [
+                Role.DPS,
+                Role.HEALER,
+                Role.TANK,
+            ]
+        )
+        if group:
             user = User(ctx)
             task = Task(user, character)
             group.remove_character(task, roles)
 
     @bot.command(name="clear", help="Remove all from queues")
     async def clear(ctx: Context):
-        group, text_channel = await get_info(ctx)
+        group, _ = await get_info(ctx)
         user_id = ctx.message.author.id
         if user_id and group:
             group.remove_user(user_id)
@@ -309,11 +365,11 @@ def main():
         if group:
             if s.get_user(ctx) == group.owner:
                 if next := group.next_tank():
-                    await lfg(ctx)
-                    await ctx.send(f"**Next tank: {next} @{next.user.nick}**")
+                    await ctx.send(f"@{next.user.nick}")
+                    await show_group(ctx, f"Next tank: {next}")
                 else:
-                    await lfg(ctx)
-                    await ctx.send("**No tanks in queue**")
+                    await show_group(ctx, "No tanks in queue")
+                    # await ctx.send("**No tanks in queue**")
             else:
                 await ctx.send(f"Only {group.owner} can request next tank")
 
@@ -325,11 +381,10 @@ def main():
         if group:
             if s.get_user(ctx) == group.owner:
                 if next := group.next_healer():
-                    await lfg(ctx)
-                    await ctx.send(f"**Next healer: {next} @{next.user.nick}**")
+                    await ctx.send(f"@{next.user.nick}")
+                    await show_group(ctx, f"Next healer: {next}")
                 else:
-                    await lfg(ctx)
-                    await ctx.send("**No healers in queue**")
+                    await show_group(ctx, "No healers in queue")
             else:
                 await ctx.send(f"Only {group.owner} can request next healer")
 
@@ -341,17 +396,19 @@ def main():
         if group:
             if s.get_user(ctx) == group.owner:
                 if next := group.next_dps():
-                    await lfg(ctx)
-                    await ctx.send(f"**Next DPS: {next} @{next.user.nick}**")
+                    await ctx.send(f"@{next.user.nick}")
+                    await show_group(ctx, f"Next DPS: {next}")
                 else:
-                    await lfg(ctx)
-                    await ctx.send("**No DPS in queue**")
+                    await show_group(ctx, "No DPS in queue")
             else:
                 await ctx.send(f"Only {group.owner} can request next DPS")
 
     @bot.command(name="debug", help="Print debug info", hidden=True)
     async def debug(ctx: Context):
-        logger(ctx.channel.name, f"Forward 'debug' for {ctx.message.author.nick}")
+        logger(
+            ctx.channel.name,
+            f"Forward 'debug' for {ctx.message.author.nick}",  # pyright: ignore
+        )
 
         s = state.get()
         await ctx.send(repr(s))
