@@ -1,5 +1,6 @@
 # pyright: reportUnusedFunction=false
 # TODO: add categories to !help
+
 if __name__ == "__main__" and __package__ is None:
     __package__ = "lfg"
 
@@ -52,40 +53,14 @@ def main():
     # FIX: refactor this, oh my
     async def show_group(ctx: Context, title: str = "") -> None:
         group, _ = await get_info(ctx)
-
-        # if group:
-        #     view = ShowView(group)
-        #     view.set_buttons()
-        #     await ctx.send(view=view)
-
         fields = []
 
         tank = list(group.tank_queue) if group else []
         healer = list(group.healer_queue) if group else []
         dps = list(group.dps_queue) if group else []
 
-        t_depth = len(tank)
-        h_depth = len(healer)
-        d_depth = len(dps)
-        max_depth = max(t_depth, h_depth, d_depth)
-        max_len = 0
-
-        len_test = tank[0:t_depth] if t_depth < max_depth else tank[0:max_depth]
-        len_test += healer[0:h_depth] if h_depth < max_depth else healer[0:max_depth]
-        len_test += dps[0:d_depth] if d_depth < max_depth else dps[0:max_depth]
-
-        for task in len_test:
-            length = len(str(task))
-            if length > max_len:
-                max_len = length
-
         fields.extend(
             [
-                # discord.EmbedField(
-                #     name="#",
-                #     value="\n".join(str(x) for x in range(min(max_depth, 24))),
-                #     inline=True,
-                # ),
                 discord.EmbedField(
                     name="Tank",
                     value="\n".join(str(task) for task in tank),
@@ -324,8 +299,8 @@ def main():
                 text_channel = "FIXME"
 
             logger(text_channel, f"Queue {task} {q_str} in {text_channel}")
-            # await ctx.message.delete()  # FIX: can't delete or edit?
             await show_group(ctx)
+            # await ctx.message.delete()  # TODO: delete this UI stuff somehow
 
     @bot.command(name="leave", help="Leave queues (<character> <roles>)")
     async def leave(ctx: Context, character: str = "", role_str: str = ""):
