@@ -1,5 +1,6 @@
 # pyright: reportUnusedFunction=false
-# TODO: add categories to !help
+# TODO: - add categories to !help
+#       - migrating to slash commands and/or using 'ephemeral'
 
 if __name__ == "__main__" and __package__ is None:
     __package__ = "lfg"
@@ -51,7 +52,9 @@ def main():
         return (group, text_channel.name)
 
     # FIX: refactor this, oh my
-    async def show_group(ctx: Context, title: str = "") -> None:
+    async def show_group(
+        ctx: Context, title: str = "", color: discord.Color = discord.Color.blurple()
+    ) -> None:
         group, _ = await get_info(ctx)
         fields = []
 
@@ -78,13 +81,6 @@ def main():
                 ),
             ]
         )
-
-        if not tank and not healer:
-            color = discord.Color.red()
-        elif not tank or not healer:
-            color = discord.Color.gold()
-        else:
-            color = discord.Color.green()
 
         embed = discord.Embed(
             title=title if title else None,
@@ -299,7 +295,7 @@ def main():
                 text_channel = "FIXME"
 
             logger(text_channel, f"Queue {task} {q_str} in {text_channel}")
-            await show_group(ctx)
+            await show_group(ctx, color=discord.Color.green())
             # await ctx.message.delete()  # TODO: delete this UI stuff somehow
 
     @bot.command(name="leave", help="Leave queues (<character> <roles>)")
@@ -343,8 +339,10 @@ def main():
                     await ctx.send(f"@{next.user.nick}")
                     await show_group(ctx, f"Next tank: {next}")
                 else:
-                    await show_group(ctx, "No tanks in queue")
-                    # await ctx.send("**No tanks in queue**")
+                    await show_group(
+                        ctx, "No tanks in queue!", color=discord.Color.red()
+                    )
+                    # await ctx.send("**No tanks in queue!**")
             else:
                 await ctx.send(f"Only {group.owner} can request next tank")
 
@@ -359,7 +357,9 @@ def main():
                     await ctx.send(f"@{next.user.nick}")
                     await show_group(ctx, f"Next healer: {next}")
                 else:
-                    await show_group(ctx, "No healers in queue")
+                    await show_group(
+                        ctx, "No healers in queue!", color=discord.Color.red()
+                    )
             else:
                 await ctx.send(f"Only {group.owner} can request next healer")
 
@@ -374,7 +374,7 @@ def main():
                     await ctx.send(f"@{next.user.nick}")
                     await show_group(ctx, f"Next DPS: {next}")
                 else:
-                    await show_group(ctx, "No DPS in queue")
+                    await show_group(ctx, "No DPS in queue!", color=discord.Color.red())
             else:
                 await ctx.send(f"Only {group.owner} can request next DPS")
 
