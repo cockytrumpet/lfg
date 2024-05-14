@@ -1,6 +1,9 @@
-# pyright: reportUnusedFunction=false
 # TODO: - add categories to !help
 #       - migrating to slash commands and/or using 'ephemeral'
+
+from typing import Callable
+
+from discord import ApplicationContext
 
 if __name__ == "__main__" and __package__ is None:
     __package__ = "lfg"
@@ -27,33 +30,36 @@ def main():
     TOKEN = os.getenv("DISCORD_TOKEN")
 
     if not TOKEN:
-        print("DISCORD_TOKEN not set in .env file")
+        print("DISCORD_TOKEN not set")
         exit(1)
 
-    intents = discord.Intents.default()
-    intents.message_content = True
-
-    bot = commands.Bot(command_prefix="!", intents=intents)
+    bot = discord.Bot()
 
     state = contextvars.ContextVar("state", default=State())
 
     # ------------------ helper functions ------------------ #
 
-    async def get_info(ctx: Context) -> tuple[Group | None, str | None]:
-        if ctx.message.channel.type == discord.ChannelType.voice:
-            text_channel = ctx.channel
+    async def get_info(
+        ctx: discord.ApplicationContext,
+    ) -> tuple[Group | None, str | None]:
+        # if ctx.message.channel.type == discord.ChannelType.voice:
+        if ctx.channel.type == discord.ChannelType.voice:
+            text_channel = ctx.channel.name
         else:
-            await ctx.send("Looking for group? Join a voice channel!")
+            await ctx.respond("Looking for group? Join a voice channel!")
             return (None, None)
 
         s = state.get()
-        group = s.get_group(text_channel.name)
+        group = s.get_group(text_channel)
 
-        return (group, text_channel.name)
+        return (group, text_channel)
 
     # FIX: refactor this, oh my
     async def show_group(
-        ctx: Context, title: str = "", color: discord.Color = discord.Color.blurple()
+        ctx: discord.ApplicationContext,
+        title: str = "",
+        color: discord.Color = discord.Color.blurple(),
+        send: Callable | None = None,
     ) -> None:
         group, _ = await get_info(ctx)
         fields = []
@@ -87,7 +93,12 @@ def main():
             fields=fields,
             color=color,
         )
-        await ctx.send(embeds=[embed])
+
+        if send is None:
+            send = ctx.channel.send
+        await send(embed=embed)
+        # await ctx.response.edit_message(embeds=[embed])
+        # await ctx.channel.send(embed=embed)
 
     # -------------------- bot commands -------------------- #
 
@@ -112,30 +123,30 @@ def main():
             else:
                 raise
 
-    @bot.command(name="vote", help="Vote for new group owner")
-    async def vote(ctx: Context, name: str = ""):
+    @bot.slash_command(name="vote", help="Vote for new group owner")
+    async def vote(ctx: discord.ApplicationContext, name: str = ""):
         if name == "":
-            await ctx.send("Missing name: !vote <name>")
+            await ctx.respond("Missing name: !vote <name>")
             return
         group, text_channel = await get_info(ctx)
         if not text_channel:
             return
         if not group:
-            await ctx.send(f"No group in {text_channel}. Start one with !lfg.")
+            await ctx.respond(f"No group in {text_channel}. Start one with !lfg.")
             return
         s = state.get()
         user = s.get_user_by_name(name)
         if not user or user.nick == "lfg":
-            await ctx.send(f"User {name} not found")
+            await ctx.respond(f"User {name} not found")
             return
         if user == group.owner:
-            await ctx.send(f"{name} is already the owner")
+            await ctx.respond(f"{name} is already the owner")
             return
         group.add_vote(user)
-        await ctx.send(f"{name} has been voted for")
+        await ctx.respond(f"{name} has been voted for")
 
-    @bot.command(name="lfg", help="Form group/print status")
-    async def lfg(ctx: Context):
+    @bot.slash_command(name="lfg", help="Form group/print status")
+    async def lfg(ctx: discord.ApplicationContext):
         group, _ = await get_info(ctx)
         s = state.get()
         user = s.get_user(ctx)
@@ -145,16 +156,17 @@ def main():
         if group:
             # msg = str(group)
             # await ctx.send(msg)
-            await show_group(ctx)
+            await ctx.response.defer()
+            await show_group(ctx, send=ctx.followup.send)
         else:
             s = state.get()
             s.add_group(ctx.channel.name, user)
-            await ctx.send(f"{user.name} formed group in {ctx.channel}")
+            await ctx.respond(f"{user.name} formed group in {ctx.channel}")
 
-    @bot.command(name="yield", help="Transfer ownership")
-    async def yieldgroup(ctx: Context, name: str = ""):
+    @bot.slash_command(name="yield", help="Transfer ownership")
+    async def yieldgroup(ctx: discord.ApplicationContext, name: str = ""):
         if name == "":
-            await ctx.send("Missing name: !yield <name>")
+            await ctx.respond("Missing name: !yield <name>")
             return
 
         group, text_channel = await get_info(ctx)
@@ -162,12 +174,12 @@ def main():
         if not text_channel:
             return
         if not group:
-            await ctx.send(f"No group in {text_channel}. Start one with !lfg.")
+            await ctx.respond(f"No group in {text_channel}. Start one with !lfg.")
             return
 
-        if not group.is_owner(ctx.message.author.id):
-            await ctx.send(
-                f"Group {text_channel} is owned by {ctx.message.author.global_name}"
+        if not group.is_owner(ctx.author.id):
+            await ctx.respond(
+                f"Group {text_channel} is owned by {ctx.author.global_name}"
             )
             return
 
@@ -176,26 +188,26 @@ def main():
 
         if not user or user.nick == "lfg":
 
-            await ctx.send(f"User {name} not found")
+            await ctx.respond(f"User {name} not found")
             return
 
         group.set_owner(user)
 
-        await ctx.send(f"Ownership transferred to @{user.nick}")
+        await ctx.respond(f"Ownership transferred to @{user.nick}")
 
-    @bot.command(name="bye", help="End group")
-    async def endgroup(ctx: Context):
+    @bot.slash_command(name="bye", help="End group")
+    async def endgroup(ctx: discord.ApplicationContext):
         group, text_channel = await get_info(ctx)
 
         if not text_channel:
             return
         if not group:
-            await ctx.send(f"No group in {text_channel}. Start one with !lfg.")
+            await ctx.respond(f"No group in {text_channel}. Start one with !lfg.")
             return
 
-        if not group.is_owner(ctx.message.author.id):
-            await ctx.send(
-                f"Group {text_channel} is owned by {ctx.message.author.global_name}"
+        if not group.is_owner(ctx.author.id):
+            await ctx.respond(
+                f"Group {text_channel} is owned by {ctx.author.global_name}"
             )
             return
 
@@ -203,25 +215,29 @@ def main():
         s.get_group(text_channel)
         s.remove_group(text_channel)
 
-        await ctx.send("Group ended!")
+        await ctx.respond("Group ended!")
 
-    @bot.command(name="remove", help="Remove character or user from queues")
-    async def remove(ctx: Context, name: str, roles_str: str = ""):
+    @bot.slash_command(name="remove", help="Remove character or user from queues")
+    async def remove(
+        ctx: discord.ApplicationContext,
+        name: str,
+        roles_str: str,  # discord.Option(str, default="dht"),
+    ):  # FIX: make optional type work
         s = state.get()
         group, _ = await get_info(ctx)
         user = s.get_user(ctx)
 
         if not group:
-            await ctx.send("No group in this channel. Start one with !lfg.")
+            await ctx.respond("No group in this channel. Start one with !lfg.")
             return
         if group.owner != user:
-            await ctx.send("Only the group owner can remove characters.")
+            await ctx.respond("Only the group owner can remove characters.")
             return
 
         found_user = s.get_user_by_name(name)
 
-        if found_user and found_user.id != 0:
-            group.remove_user(found_user.id)
+        if found_user and found_user.id:
+            removed = group.remove_user(found_user.id)
         else:
             user = s.get_user_by_character(name)
             if user:
@@ -231,10 +247,21 @@ def main():
                     Role.TANK,
                 ]
                 task = Task(user, name)
-                group.remove_character(task, roles)
+                removed = group.remove_character(task, roles)
 
-    @bot.command(name="join", help="Join queues (<character> <roles>)")
-    async def join(ctx: Context, character: str = "", role_str: str = ""):
+        await ctx.response.defer()
+        await show_group(
+            ctx,
+            color=(
+                discord.Color.red() if not removed else discord.Color.blurple()
+            ),  # why is this backward?
+            send=ctx.followup.send,
+        )
+
+    @bot.slash_command(name="join", help="Join queues (<character> <roles>)")
+    async def join(
+        ctx: discord.ApplicationContext, character: str = "", role_str: str = ""
+    ):
         s = state.get()
         s.reload_users()
         user = s.get_user(ctx)
@@ -243,14 +270,14 @@ def main():
         assert user
 
         if not group:
-            await ctx.send("No group in this channel. Start one with !lfg.")
+            await ctx.respond("No group in this channel. Start one with !lfg.")
             return
 
         if not character and not role_str:
             view = JoinView(user)
             view.update_options()
 
-            await ctx.send("Select character and roles", view=view)
+            await ctx.respond("Select character and roles", view=view, ephemeral=True)
             await view.wait()  # Wait for the user to click the button
 
             character = view.character
@@ -258,7 +285,7 @@ def main():
 
             if not character or not role_str:
                 # delete the message if no character
-                await ctx.message.delete()
+                # await ctx.message.delete()
                 return
 
             user.add_character(character, user.str_to_roles(view.roles))
@@ -298,95 +325,129 @@ def main():
             await show_group(ctx, color=discord.Color.green())
             # await ctx.message.delete()  # TODO: delete this UI stuff somehow
 
-    @bot.command(name="leave", help="Leave queues (<character> <roles>)")
-    async def leave(ctx: Context, character: str = "", role_str: str = ""):
-        if character == "":
-            await ctx.send("Missing character: !leave <character> <roles>")
-            return
+    # @bot.slash_command(name="leave", help="Leave queues (<character> <roles>)")
+    # async def leave(
+    #     ctx: discord.ApplicationContext, character: str = "", role_str: str = ""
+    # ):
+    #     if character == "":
+    #         await ctx.respond("Missing character: !leave <character> <roles>")
+    #         return
+    #
+    #     not_removed = True
+    #     s = state.get()
+    #     user = s.get_user(ctx)
+    #     group, _ = await get_info(ctx)
+    #     roles = (
+    #         user.str_to_roles(role_str)
+    #         if user
+    #         else [
+    #             Role.DPS,
+    #             Role.HEALER,
+    #             Role.TANK,
+    #         ]
+    #     )
+    #     if group:
+    #         user = User(ctx)
+    #         task = Task(user, character)
+    #         not_removed = group.remove_character(task, roles)
+    #     await ctx.response.defer()
+    #     await show_group(
+    #         ctx,
+    #         color=discord.Color.blurple() if not_removed else discord.Color.red(),
+    #         send=ctx.followup.send,
+    #     )
 
-        s = state.get()
-        user = s.get_user(ctx)
+    @bot.slash_command(name="clear", help="Remove user from queues")
+    async def clear(ctx: discord.ApplicationContext):
         group, _ = await get_info(ctx)
-        roles = (
-            user.str_to_roles(role_str)
-            if user
-            else [
-                Role.DPS,
-                Role.HEALER,
-                Role.TANK,
-            ]
-        )
-        if group:
-            user = User(ctx)
-            task = Task(user, character)
-            group.remove_character(task, roles)
-
-    @bot.command(name="clear", help="Remove all from queues")
-    async def clear(ctx: Context):
-        group, _ = await get_info(ctx)
-        user_id = ctx.message.author.id
+        user_id = ctx.author.id
         if user_id and group:
-            group.remove_user(user_id)
+            removed = group.remove_user(user_id)
+        await ctx.response.defer()
+        await show_group(
+            ctx,
+            color=discord.Color.red() if removed else discord.Color.blurple(),
+            send=ctx.followup.send,
+        )
 
-    @bot.command(name="tank", help="Get next tank")
-    async def get_tank(ctx: Context):
+    @bot.slash_command(name="tank", help="Get next tank")
+    async def get_tank(ctx: discord.ApplicationContext):
         s: State = state.get()
         group: Group | None = s.get_group(ctx.channel.name)
 
         if group:
             if s.get_user(ctx) == group.owner:
+                await ctx.response.defer()
+
                 if next := group.next_tank():
-                    await ctx.send(f"@{next.user.nick}")
-                    await show_group(ctx, f"Next tank: {next}")
+                    # await ctx.send(f"@{next.user.nick}")
+                    await show_group(ctx, f"Next tank:  {next}", send=ctx.followup.send)
                 else:
                     await show_group(
-                        ctx, "No tanks in queue!", color=discord.Color.red()
+                        ctx,
+                        "No tanks in queue!",
+                        color=discord.Color.red(),
+                        send=ctx.followup.send,
                     )
                     # await ctx.send("**No tanks in queue!**")
             else:
-                await ctx.send(f"Only {group.owner} can request next tank")
+                await ctx.respond(f"Only {group.owner} can request next tank")
 
-    @bot.command(name="healer", help="Get next healer")
-    async def get_healer(ctx: Context):
+    @bot.slash_command(name="healer", help="Get next healer")
+    async def get_healer(ctx: discord.ApplicationContext):
         s: State = state.get()
         group: Group | None = s.get_group(ctx.channel.name)
 
         if group:
             if s.get_user(ctx) == group.owner:
+                await ctx.response.defer()
+
                 if next := group.next_healer():
-                    await ctx.send(f"@{next.user.nick}")
-                    await show_group(ctx, f"Next healer: {next}")
+                    # await ctx.send(f"@{next.user.nick}")
+                    await show_group(
+                        ctx, f"Next healer: {next}", send=ctx.followup.send
+                    )
                 else:
                     await show_group(
-                        ctx, "No healers in queue!", color=discord.Color.red()
+                        ctx,
+                        "No healers in queue!",
+                        color=discord.Color.red(),
+                        send=ctx.followup.send,
                     )
             else:
-                await ctx.send(f"Only {group.owner} can request next healer")
+                await ctx.respond(f"Only {group.owner} can request next healer")
 
-    @bot.command(name="dps", help="Get next DPS")
-    async def get_dps(ctx: Context):
+    @bot.slash_command(name="dps", help="Get next DPS")
+    async def get_dps(ctx: discord.ApplicationContext):
         s: State = state.get()
         group: Group | None = s.get_group(ctx.channel.name)
 
         if group:
             if s.get_user(ctx) == group.owner:
-                if next := group.next_dps():
-                    await ctx.send(f"@{next.user.nick}")
-                    await show_group(ctx, f"Next DPS: {next}")
-                else:
-                    await show_group(ctx, "No DPS in queue!", color=discord.Color.red())
-            else:
-                await ctx.send(f"Only {group.owner} can request next DPS")
+                await ctx.response.defer()
 
-    @bot.command(name="debug", help="Print debug info", hidden=True)
-    async def debug(ctx: Context):
+                if next := group.next_dps():
+                    # await ctx.send(f"@{next.user.nick}")
+                    await show_group(ctx, f"Next DPS: {next}", send=ctx.followup.send)
+                else:
+                    await show_group(
+                        ctx,
+                        "No DPS in queue!",
+                        color=discord.Color.red(),
+                        send=ctx.followup.send,
+                    )
+            else:
+                await ctx.respond(f"Only {group.owner} can request next DPS")
+
+    @bot.slash_command(name="debug", help="Print debug info", hidden=True)
+    async def debug(ctx: discord.ApplicationContext):
         logger(
             ctx.channel.name,
-            f"Forward 'debug' for {ctx.message.author.nick}",  # pyright: ignore
+            f"Forward 'debug' for {ctx.author.nick}",  # pyright: ignore
         )
 
         s = state.get()
-        await ctx.send(repr(s))
+        await ctx.respond(repr(s))
 
     bot.run(TOKEN)
 

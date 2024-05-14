@@ -18,7 +18,7 @@ class Task:
 
     def __str__(self):
         if self.character != None:
-            return f"{self.character} (*{self.user.name}*)"
+            return f"{self.character} ({self.user.name})"
         else:
             return f"{self.user.name}"
 

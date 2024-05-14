@@ -1,7 +1,7 @@
 # pyright: basic
 import pickle
 
-from discord.ext import commands
+import discord
 
 from lfg.group import Group
 from lfg.user import User
@@ -30,9 +30,9 @@ class State:
         with open("state.users.pickle", "wb") as f:
             pickle.dump(self.users, f)
 
-    def get_user(self, ctx: commands.Context) -> User | None:
+    def get_user(self, ctx: discord.ApplicationContext) -> User | None:
         """find user by context, calls update_user if not found"""
-        user = self.users.get(ctx.message.author.id)
+        user = self.users.get(ctx.author.id)
         # if user is None:
         #     user = User(ctx)
         #     self.update_user(user)

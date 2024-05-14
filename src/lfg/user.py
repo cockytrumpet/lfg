@@ -1,6 +1,7 @@
 # pyright: basic
 from typing import Optional
 
+import discord
 from discord import SelectOption
 from discord.ext import commands
 
@@ -8,13 +9,13 @@ from lfg.role import Role
 
 
 class User:
-    def __init__(self, ctx: commands.Context | None = None):
+    def __init__(self, ctx: discord.ApplicationContext | None = None):
         super().__init__()
 
         if ctx:
-            id: int = ctx.message.author.id
-            name: str | None = ctx.message.author.global_name
-            nick: str | None = ctx.message.author.nick
+            id: int = ctx.author.id
+            name: str | None = ctx.author.global_name
+            nick: str | None = ctx.author.nick
             guild_id: int = ctx.guild.id
             characters: dict[str, list[Role]] = {}
         else:

@@ -112,8 +112,13 @@ class Group:
 
     def remove_character(
         self, task: Task, roles: list[Role] = [Role.TANK, Role.HEALER, Role.DPS]
-    ) -> Task | None:
+    ) -> bool:
+        def total_tasks() -> int:
+            return len(self.tank_queue) + len(self.healer_queue) + len(self.dps_queue)
+
+        start_count = total_tasks()
         r_str = ""
+
         for role in roles:
             match role:
                 case Role.TANK:
@@ -133,24 +138,31 @@ class Group:
             r_str = f"from [{','.join(r_str)}]"
 
         logger(self.channel, f"Remove {task} {r_str}")
-        return task
+        return start_count == total_tasks()
 
-    def remove_user(self, user_id: int) -> User | None:
+    def remove_user(self, user_id: int) -> bool:
+        removed = False
         for queue in [self.tank_queue, self.healer_queue, self.dps_queue]:
             user: User | None = None
             temp = []
+
             for task in queue:
                 if task.user.id == user_id:
                     if not user:
                         user = task.user
                     temp.append(task)
+
+            if len(temp) > 0:
+                removed = True
+
             for t in temp:
                 if t in queue:
                     queue.remove(t)
 
         if user:
             logger(self.channel, f"Remove {user.nick} from queues")
-        return user
+
+        return removed
 
     def get_queues(self) -> tuple[deque[Task], deque[Task], deque[Task]]:
         return (self.tank_queue, self.healer_queue, self.dps_queue)
@@ -168,7 +180,7 @@ class Group:
         d_len = len(dps)
         max_len = max(t_len, h_len, d_len)
 
-        output = f'{"\#":<4} {"**Tank**":<20} {"**Healer**":<20} {"**DPS**":<20}\n'  # pyright: ignore
+        output = f'{"#":<4} {"**Tank**":<20} {"**Healer**":<20} {"**DPS**":<20}\n'  # pyright: ignore
         output += "-" * len(output) + "\n"
 
         for i in range(max_len, -1, -1):
