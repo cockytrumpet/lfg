@@ -1,39 +1,29 @@
-# TODO: - add categories to !help
-#       - migrating to slash commands and/or using 'ephemeral'
-
-from typing import Callable
-
-from discord import ApplicationContext
-
 if __name__ == "__main__" and __package__ is None:
     __package__ = "lfg"
 
+import contextvars
+import os
+from typing import Callable
+
+import discord
+from discord.ext import tasks
+
+from lfg.group import Group
+from lfg.join_ui import JoinView
+from lfg.role import Role
+from lfg.state import State
+from lfg.task import Task
+from lfg.utils import logger
+
 
 def main():
-    import contextvars
-    import os
-
-    import discord
-    from discord.ext import commands, tasks
-    from discord.ext.commands import Context
-
-    from lfg.group import Group
-    from lfg.join_ui import JoinView
-    from lfg.role import Role
-
-    # from lfg.show_ui import ShowView
-    from lfg.state import State
-    from lfg.task import Task
-    from lfg.user import User
-    from lfg.utils import logger
-
     TOKEN = os.getenv("DISCORD_TOKEN")
 
     if not TOKEN:
         print("DISCORD_TOKEN not set")
         exit(1)
 
-    bot = discord.Bot()
+    bot = discord.Bot(allowed_mentions=discord.AllowedMentions.all())
 
     state = contextvars.ContextVar("state", default=State())
 
@@ -42,7 +32,6 @@ def main():
     async def get_info(
         ctx: discord.ApplicationContext,
     ) -> tuple[Group | None, str | None]:
-        # if ctx.message.channel.type == discord.ChannelType.voice:
         if ctx.channel.type == discord.ChannelType.voice:
             text_channel = ctx.channel.name
         else:
@@ -54,10 +43,10 @@ def main():
 
         return (group, text_channel)
 
-    # FIX: refactor this, oh my
     async def show_group(
         ctx: discord.ApplicationContext,
         title: str = "",
+        mention: str = "",
         color: discord.Color = discord.Color.blurple(),
         send: Callable | None = None,
     ) -> None:
@@ -96,9 +85,10 @@ def main():
 
         if send is None:
             send = ctx.channel.send
-        await send(embed=embed)
-        # await ctx.response.edit_message(embeds=[embed])
-        # await ctx.channel.send(embed=embed)
+        if mention:
+            await send(mention, embed=embed)
+        else:
+            await send(embed=embed)
 
     # -------------------- bot commands -------------------- #
 
@@ -154,8 +144,6 @@ def main():
         assert user
 
         if group:
-            # msg = str(group)
-            # await ctx.send(msg)
             await ctx.response.defer()
             await show_group(ctx, send=ctx.followup.send)
         else:
@@ -234,24 +222,19 @@ def main():
         if not group:
             await ctx.respond("No group in this channel. Start one with !lfg.")
             return
-        if group.owner != user:
+        if group.owner != user or name not in user.characters:
             await ctx.respond("Only the group owner can remove characters.")
             return
 
-        found_user = s.get_user_by_name(name)
-
-        if found_user and found_user.id:
-            removed = group.remove_user(found_user.id)
-        else:
-            user = s.get_user_by_character(name)
-            if user:
-                roles = user.str_to_roles(roles_str) or [
-                    Role.DPS,
-                    Role.HEALER,
-                    Role.TANK,
-                ]
-                task = Task(user, name)
-                removed = group.remove_character(task, roles)
+        user = s.get_user_by_character(name)
+        if user:
+            roles = user.str_to_roles(roles_str) or [
+                Role.DPS,
+                Role.HEALER,
+                Role.TANK,
+            ]
+            task = Task(user, name)
+            removed = group.remove_character(task, roles)
 
         await ctx.response.defer()
         await show_group(
@@ -282,7 +265,7 @@ def main():
             view.update_options()
 
             await ctx.respond("Select character and roles", view=view, ephemeral=True)
-            await view.wait()  # Wait for the user to click the button
+            await view.wait()
 
             character = view.character
             role_str = view.roles
@@ -294,8 +277,6 @@ def main():
 
             user.add_character(character, user.str_to_roles(view.roles))
             s.update_user(user)
-
-            # view.stop()
 
         roles: list[Role] = user.str_to_roles(role_str)
         task = Task(
@@ -329,38 +310,6 @@ def main():
             await show_group(ctx, color=discord.Color.green())
             # await ctx.message.delete()  # TODO: delete this UI stuff somehow
 
-    # @bot.slash_command(name="leave", help="Leave queues (<character> <roles>)")
-    # async def leave(
-    #     ctx: discord.ApplicationContext, character: str = "", role_str: str = ""
-    # ):
-    #     if character == "":
-    #         await ctx.respond("Missing character: !leave <character> <roles>")
-    #         return
-    #
-    #     not_removed = True
-    #     s = state.get()
-    #     user = s.get_user(ctx)
-    #     group, _ = await get_info(ctx)
-    #     roles = (
-    #         user.str_to_roles(role_str)
-    #         if user
-    #         else [
-    #             Role.DPS,
-    #             Role.HEALER,
-    #             Role.TANK,
-    #         ]
-    #     )
-    #     if group:
-    #         user = User(ctx)
-    #         task = Task(user, character)
-    #         not_removed = group.remove_character(task, roles)
-    #     await ctx.response.defer()
-    #     await show_group(
-    #         ctx,
-    #         color=discord.Color.blurple() if not_removed else discord.Color.red(),
-    #         send=ctx.followup.send,
-    #     )
-
     @bot.slash_command(name="clear", help="Remove all user's characters")
     async def clear(ctx: discord.ApplicationContext):
         group, _ = await get_info(ctx)
@@ -384,16 +333,19 @@ def main():
                 await ctx.response.defer()
 
                 if next := group.next_tank():
-                    # await ctx.send(f"@{next.user.nick}")
-                    await show_group(ctx, f"Next tank:  {next}", send=ctx.followup.send)
+                    await show_group(
+                        ctx,
+                        title=f"Next tank: {next}",
+                        mention=f"@{next.user.nick}",
+                        send=ctx.followup.send,
+                    )
                 else:
                     await show_group(
                         ctx,
-                        "No tanks in queue!",
-                        color=discord.Color.red(),
+                        title="No tanks in queue!",
+                        color=discord.Color.orange(),
                         send=ctx.followup.send,
                     )
-                    # await ctx.send("**No tanks in queue!**")
             else:
                 await ctx.respond(f"Only {group.owner} can request next tank")
 
@@ -408,13 +360,16 @@ def main():
 
                 if next := group.next_healer():
                     await show_group(
-                        ctx, f"Next healer: {next}", send=ctx.followup.send
+                        ctx,
+                        title=f"Next healer: {next}",
+                        mention=f"@{next.user.nick}",
+                        send=ctx.followup.send,
                     )
                 else:
                     await show_group(
                         ctx,
-                        "No healers in queue!",
-                        color=discord.Color.red(),
+                        title="No healers in queue!",
+                        color=discord.Color.orange(),
                         send=ctx.followup.send,
                     )
             else:
@@ -430,12 +385,17 @@ def main():
                 await ctx.response.defer()
 
                 if next := group.next_dps():
-                    await show_group(ctx, f"Next DPS: {next}", send=ctx.followup.send)
+                    await show_group(
+                        ctx,
+                        f"Next DPS: {next}",
+                        mention=f"@{next.user.nick}",
+                        send=ctx.followup.send,
+                    )
                 else:
                     await show_group(
                         ctx,
-                        "No DPS in queue!",
-                        color=discord.Color.red(),
+                        title="No DPS in queue!",
+                        color=discord.Color.orange(),
                         send=ctx.followup.send,
                     )
             else:
