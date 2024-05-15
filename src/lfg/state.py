@@ -33,9 +33,9 @@ class State:
     def get_user(self, ctx: discord.ApplicationContext) -> User | None:
         """find user by context, calls update_user if not found"""
         user = self.users.get(ctx.author.id)
-        # if user is None:
-        #     user = User(ctx)
-        #     self.update_user(user)
+        if user is None:
+            user = User(ctx)
+            self.update_user(user)
         return user
 
     def get_user_by_id(self, id: int) -> User | None:
@@ -102,4 +102,4 @@ class State:
             for char in user.characters:
                 char_list.append(char.__str__())
 
-        return f"State({self.groups}, {', '.join(char_list)})"
+        return f"State({self.groups}, Characters({', '.join(char_list)}))"

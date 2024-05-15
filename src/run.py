@@ -113,7 +113,7 @@ def main():
             else:
                 raise
 
-    @bot.slash_command(name="vote", help="Vote for new group owner")
+    @bot.slash_command(name="vote", description="vote for new group owner")
     async def vote(ctx: discord.ApplicationContext, name: str = ""):
         if name == "":
             await ctx.respond("Missing name: !vote <name>")
@@ -135,7 +135,7 @@ def main():
         group.add_vote(user)
         await ctx.respond(f"{name} has been voted for")
 
-    @bot.slash_command(name="lfg", help="Form group/print status")
+    @bot.slash_command(name="lfg", description="form group/print status")
     async def lfg(ctx: discord.ApplicationContext):
         group, _ = await get_info(ctx)
         s = state.get()
@@ -151,7 +151,7 @@ def main():
             s.add_group(ctx.channel.name, user)
             await ctx.respond(f"{user.name} formed group in {ctx.channel}")
 
-    @bot.slash_command(name="yield", help="Transfer ownership")
+    @bot.slash_command(name="yield", description="transfer ownership")
     async def yieldgroup(ctx: discord.ApplicationContext, name: str = ""):
         if name == "":
             await ctx.respond("Missing name: !yield <name>")
@@ -183,7 +183,9 @@ def main():
 
         await ctx.respond(f"Ownership transferred to @{user.nick}")
 
-    @bot.slash_command(name="bye", help="End group")
+    @bot.slash_command(
+        name="bye", description="end group (owner) or remove all characters"
+    )
     async def endgroup(ctx: discord.ApplicationContext):
         group, text_channel = await get_info(ctx)
 
@@ -209,7 +211,7 @@ def main():
 
         await ctx.respond("Group ended!")
 
-    @bot.slash_command(name="unjoin", help="Remove character from queues")
+    @bot.slash_command(name="unjoin", description="unjoin queues")
     async def unjoin(
         ctx: discord.ApplicationContext,
         name: str,
@@ -245,7 +247,7 @@ def main():
             send=ctx.followup.send,
         )
 
-    @bot.slash_command(name="join", help="Join queues (<character> <roles>)")
+    @bot.slash_command(name="join", description="join queues")
     async def join(
         ctx: discord.ApplicationContext, character: str = "", role_str: str = ""
     ):
@@ -310,20 +312,21 @@ def main():
             await show_group(ctx, color=discord.Color.green())
             # await ctx.message.delete()  # TODO: delete this UI stuff somehow
 
-    @bot.slash_command(name="clear", help="Remove all user's characters")
-    async def clear(ctx: discord.ApplicationContext):
-        group, _ = await get_info(ctx)
-        user_id = ctx.author.id
-        if user_id and group:
-            removed = group.remove_user(user_id)
-        await ctx.response.defer()
-        await show_group(
-            ctx,
-            color=discord.Color.red() if removed else discord.Color.blurple(),
-            send=ctx.followup.send,
-        )
-
-    @bot.slash_command(name="tank", help="Get next tank")
+    # NOTE: is this useful?
+    # @bot.slash_command(name="clear", description="remove all your characters")
+    # async def clear(ctx: discord.ApplicationContext):
+    #     group, _ = await get_info(ctx)
+    #     user_id = ctx.author.id
+    #     if user_id and group:
+    #         removed = group.remove_user(user_id)
+    #     await ctx.response.defer()
+    #     await show_group(
+    #         ctx,
+    #         color=discord.Color.red() if removed else discord.Color.blurple(),
+    #         send=ctx.followup.send,
+    #     )
+    #
+    @bot.slash_command(name="tank", description="get next tank")
     async def get_tank(ctx: discord.ApplicationContext):
         s: State = state.get()
         group: Group | None = s.get_group(ctx.channel.name)
@@ -349,7 +352,7 @@ def main():
             else:
                 await ctx.respond(f"Only {group.owner} can request next tank")
 
-    @bot.slash_command(name="healer", help="Get next healer")
+    @bot.slash_command(name="healer", description="get next healer")
     async def get_healer(ctx: discord.ApplicationContext):
         s: State = state.get()
         group: Group | None = s.get_group(ctx.channel.name)
@@ -375,7 +378,7 @@ def main():
             else:
                 await ctx.respond(f"Only {group.owner} can request next healer")
 
-    @bot.slash_command(name="dps", help="Get next DPS")
+    @bot.slash_command(name="dps", description="get next DPS")
     async def get_dps(ctx: discord.ApplicationContext):
         s: State = state.get()
         group: Group | None = s.get_group(ctx.channel.name)
@@ -401,7 +404,7 @@ def main():
             else:
                 await ctx.respond(f"Only {group.owner} can request next DPS")
 
-    @bot.slash_command(name="debug", help="Print debug info", hidden=True)
+    @bot.slash_command(name="debug", description="debug info", hidden=True)
     async def debug(ctx: discord.ApplicationContext):
         logger(
             ctx.channel.name,
