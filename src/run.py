@@ -206,23 +206,27 @@ def main():
             return
 
         if not group.is_owner(ctx.author.id):
-            await ctx.respond(
-                f"Group {text_channel} is owned by {ctx.author.global_name}"
+            user_id = ctx.author.id
+            if user_id and group:
+                removed = group.remove_user(user_id)
+            await ctx.response.defer()
+            await show_group(
+                ctx,
+                color=discord.Color.red() if removed else discord.Color.blurple(),
+                send=ctx.followup.send,
             )
-            return
 
         s = state.get()
-        s.get_group(text_channel)
         s.remove_group(text_channel)
 
         await ctx.respond("Group ended!")
 
-    @bot.slash_command(name="remove", help="Remove character or user from queues")
-    async def remove(
+    @bot.slash_command(name="unjoin", help="Remove character from queues")
+    async def unjoin(
         ctx: discord.ApplicationContext,
         name: str,
-        roles_str: str,  # discord.Option(str, default="dht"),
-    ):  # FIX: make optional type work
+        roles_str: str,
+    ):
         s = state.get()
         group, _ = await get_info(ctx)
         user = s.get_user(ctx)
@@ -357,7 +361,7 @@ def main():
     #         send=ctx.followup.send,
     #     )
 
-    @bot.slash_command(name="clear", help="Remove user from queues")
+    @bot.slash_command(name="clear", help="Remove all user's characters")
     async def clear(ctx: discord.ApplicationContext):
         group, _ = await get_info(ctx)
         user_id = ctx.author.id
@@ -403,7 +407,6 @@ def main():
                 await ctx.response.defer()
 
                 if next := group.next_healer():
-                    # await ctx.send(f"@{next.user.nick}")
                     await show_group(
                         ctx, f"Next healer: {next}", send=ctx.followup.send
                     )
@@ -427,7 +430,6 @@ def main():
                 await ctx.response.defer()
 
                 if next := group.next_dps():
-                    # await ctx.send(f"@{next.user.nick}")
                     await show_group(ctx, f"Next DPS: {next}", send=ctx.followup.send)
                 else:
                     await show_group(
